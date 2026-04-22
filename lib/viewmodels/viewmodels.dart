@@ -154,8 +154,10 @@ class AdminMembersViewModel extends ChangeNotifier {
     if (_searchQuery.isNotEmpty) {
       list = list.where((m) => m.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
     }
-    if (_statusFilter != 'Todos') {
-      list = list.where((m) => m.status == _statusFilter.toUpperCase()).toList();
+    if (_statusFilter == 'Ativos') {
+      list = list.where((m) => m.status == 'ATIVO').toList();
+    } else if (_statusFilter == 'Inativos') {
+      list = list.where((m) => m.status == 'INATIVO').toList();
     }
     return list;
   }
@@ -176,6 +178,13 @@ class AdminMembersViewModel extends ChangeNotifier {
     _repo.removeMember(id);
     notifyListeners();
   }
+
+  void updateMember(MemberModel updated) {
+    _repo.updateMember(updated);
+    notifyListeners();
+  }
+
+  void refresh() => notifyListeners();
 }
 
 // ─── Admin Agenda ViewModel ───────────────────────────────────────────────────
@@ -316,22 +325,47 @@ class PresidentOnboardingViewModel extends ChangeNotifier {
   );
 }
 
-// ─── Register Member ViewModel ────────────────────────────────────────────────
+// ─── Register / Edit Member ViewModel ────────────────────────────────────────
 class RegisterMemberViewModel extends ChangeNotifier {
-  String _selectedRole = 'Membro';
+  final MemberRepository _repo = MemberRepository();
+  final MemberModel? initialMember;
+
+  late String _selectedRole;
+  late String _selectedStatus;
   bool _isLoading = false;
 
   String get selectedRole => _selectedRole;
+  String get selectedStatus => _selectedStatus;
   bool get isLoading => _isLoading;
+  bool get isEditMode => initialMember != null;
 
-  static const List<String> roles = ['Diretor', 'Membro', 'Coordenador'];
+  static const List<String> roles = [
+    'Membro', 'Diretor', 'Coordenador', 'Financeiro', 'Marketing', 'Vice-Presidente',
+  ];
+  static const List<String> statuses = ['ATIVO', 'INATIVO'];
+
+  RegisterMemberViewModel({this.initialMember}) {
+    final role = initialMember?.role ?? 'Membro';
+    _selectedRole = roles.contains(role)
+        ? role
+        : roles.firstWhere(
+            (r) => r.toUpperCase() == role.toUpperCase(),
+            orElse: () => 'Membro',
+          );
+    _selectedStatus = initialMember?.status ?? 'ATIVO';
+  }
 
   void setRole(String role) {
     _selectedRole = role;
     notifyListeners();
   }
 
-  Future<bool> register({
+  void setStatus(String status) {
+    _selectedStatus = status;
+    notifyListeners();
+  }
+
+  Future<bool> save({
     required String name,
     required String email,
     required String ra,
@@ -339,7 +373,30 @@ class RegisterMemberViewModel extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (isEditMode) {
+      _repo.updateMember(initialMember!.copyWith(
+        name: name.trim().isEmpty ? null : name.trim(),
+        role: _selectedRole.toUpperCase(),
+        status: _selectedStatus,
+        email: email.trim(),
+        ra: ra.trim(),
+        curso: curso.trim(),
+      ));
+    } else {
+      _repo.addMember(MemberModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        rank: _repo.nextRank,
+        name: name.trim(),
+        role: _selectedRole.toUpperCase(),
+        status: _selectedStatus,
+        email: email.trim(),
+        ra: ra.trim(),
+        curso: curso.trim(),
+      ));
+    }
+
     _isLoading = false;
     notifyListeners();
     return true;

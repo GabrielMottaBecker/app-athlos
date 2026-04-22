@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/theme_notifier.dart';
+import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 
 class RegisterMemberView extends StatelessWidget {
-  const RegisterMemberView({super.key});
+  final MemberModel? member;
+  const RegisterMemberView({super.key, this.member});
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => RegisterMemberViewModel(),
+      create: (_) => RegisterMemberViewModel(initialMember: member),
       child: const _RegisterMemberContent(),
     );
   }
@@ -28,6 +31,18 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
   final _cursoController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    final m = context.read<RegisterMemberViewModel>().initialMember;
+    if (m != null) {
+      _nameController.text = m.name;
+      _emailController.text = m.email;
+      _raController.text = m.ra;
+      _cursoController.text = m.curso;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
@@ -40,19 +55,27 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
   Widget build(BuildContext context) {
     final vm = context.watch<RegisterMemberViewModel>();
     final ext = context.athlos;
+    final isEdit = vm.isEditMode;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: ext.backgroundColor,
-      appBar: AthlosAppBar(title: 'Cadastrar Membro'),
+      appBar: AthlosAppBar(title: isEdit ? 'Editar Membro' : 'Cadastrar Membro'),
       body: Column(children: [
         Expanded(child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Cadastrar\nMembro', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ext.textPrimary, height: 1.2)),
+            Text(
+              isEdit ? 'Editar\nMembro' : 'Cadastrar\nMembro',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: ext.textPrimary, height: 1.2),
+            ),
             const SizedBox(height: 6),
-            Text('Adicione novos talentos e defina seus papéis na organização.',
-              style: TextStyle(fontSize: 12, color: ext.textSecondary, height: 1.4)),
+            Text(
+              isEdit
+                  ? 'Atualize as informações e o papel do membro.'
+                  : 'Adicione novos talentos e defina seus papéis na organização.',
+              style: TextStyle(fontSize: 12, color: ext.textSecondary, height: 1.4),
+            ),
             const SizedBox(height: 20),
 
             // Informações Gerais
@@ -75,6 +98,47 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
             ])),
             const SizedBox(height: 14),
 
+            // Status (somente no modo edição)
+            if (isEdit) ...[
+              AthlosCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Icon(Icons.toggle_on_outlined, size: 16, color: ext.primaryColor),
+                  const SizedBox(width: 6),
+                  Text('Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
+                ]),
+                const SizedBox(height: 14),
+                Row(children: RegisterMemberViewModel.statuses.map((s) {
+                  final sel = s == vm.selectedStatus;
+                  final isAtivo = s == 'ATIVO';
+                  final activeColor = isAtivo ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+                  return Expanded(child: Padding(
+                    padding: EdgeInsets.only(right: isAtivo ? 8 : 0),
+                    child: GestureDetector(
+                      onTap: () => context.read<RegisterMemberViewModel>().setStatus(s),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: sel ? activeColor.withOpacity(0.15) : ext.surfaceVariant,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: sel ? activeColor : ext.borderColor),
+                        ),
+                        child: Center(child: Text(
+                          s,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: sel ? activeColor : ext.textSecondary,
+                          ),
+                        )),
+                      ),
+                    ),
+                  ));
+                }).toList()),
+              ])),
+              const SizedBox(height: 14),
+            ],
+
             // Definição de Papel
             AthlosCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -83,26 +147,33 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                 Text('Definição de Papel', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
               ]),
               const SizedBox(height: 14),
-              Row(mainAxisAlignment: MainAxisAlignment.spaceAround,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: RegisterMemberViewModel.roles.map((r) {
                   final sel = r == vm.selectedRole;
                   return GestureDetector(
                     onTap: () => context.read<RegisterMemberViewModel>().setRole(r),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 80, height: 72,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
                         color: sel ? ext.primaryColor : ext.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: sel ? ext.primaryColor : ext.borderColor)),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.person, size: 24, color: sel ? Colors.white : ext.textSecondary),
-                        const SizedBox(height: 4),
-                        Text(r, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: sel ? Colors.white : ext.textSecondary)),
-                      ]),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: sel ? ext.primaryColor : ext.borderColor),
+                      ),
+                      child: Text(
+                        r,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: sel ? Colors.white : ext.textSecondary,
+                        ),
+                      ),
                     ),
                   );
-                }).toList()),
+                }).toList(),
+              ),
             ])),
             const SizedBox(height: 14),
 
@@ -116,39 +187,37 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Dica do Sistema', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
                   const SizedBox(height: 3),
-                  const Text('Este membro terá acesso à atlética conforme as permissões do papel selecionado.',
-                    style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.4)),
+                  const Text(
+                    'Este membro terá acesso à atlética conforme as permissões do papel selecionado.',
+                    style: TextStyle(fontSize: 11, color: Colors.white70, height: 1.4),
+                  ),
                 ])),
               ]),
             ),
-            const SizedBox(height: 14),
-
-            // Estatísticas
-            AthlosCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Associação Atual', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
-              const SizedBox(height: 12),
-              _StatRow('Total de Membros', '104', ext),
-              _StatRow('Vagos', '36', ext),
-              _StatRow('Novos este mês', '+12', ext, color: const Color(0xFF10B981)),
-            ])),
           ]),
         )),
 
         // Botões
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: ext.surfaceColor, border: Border(top: BorderSide(color: ext.borderColor))),
+          decoration: BoxDecoration(
+            color: ext.surfaceColor,
+            border: Border(top: BorderSide(color: ext.borderColor)),
+          ),
           child: Row(children: [
             Expanded(child: OutlinedButton(
               onPressed: () => Navigator.pop(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: ext.primaryColor, side: BorderSide(color: ext.borderColor),
-                padding: const EdgeInsets.symmetric(vertical: 13)),
-              child: const Text('Cancelar'))),
+                foregroundColor: ext.primaryColor,
+                side: BorderSide(color: ext.borderColor),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+              child: const Text('Cancelar'),
+            )),
             const SizedBox(width: 10),
             Expanded(flex: 2, child: ElevatedButton.icon(
               onPressed: vm.isLoading ? null : () async {
-                final ok = await context.read<RegisterMemberViewModel>().register(
+                final ok = await context.read<RegisterMemberViewModel>().save(
                   name: _nameController.text,
                   email: _emailController.text,
                   ra: _raController.text,
@@ -157,10 +226,14 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                 if (ok && context.mounted) Navigator.pop(context);
               },
               icon: vm.isLoading
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.person_add, size: 16, color: Colors.white),
-              label: Text(vm.isLoading ? 'Registrando...' : 'Registrar →',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Icon(isEdit ? Icons.save_outlined : Icons.person_add, size: 16, color: Colors.white),
+              label: Text(
+                vm.isLoading
+                    ? (isEdit ? 'Salvando...' : 'Registrando...')
+                    : (isEdit ? 'Salvar →' : 'Registrar →'),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
               style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 13)),
             )),
           ]),
@@ -168,19 +241,4 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
       ]),
     );
   }
-}
-
-class _StatRow extends StatelessWidget {
-  final String label, value;
-  final AthlosThemeExtension ext;
-  final Color? color;
-  const _StatRow(this.label, this.value, this.ext, {this.color});
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(children: [
-      Text(label, style: TextStyle(fontSize: 12, color: ext.textSecondary)),
-      const Spacer(),
-      Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color ?? ext.textPrimary)),
-    ]));
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/theme_notifier.dart';
+import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import 'register_member_view.dart';
@@ -297,24 +298,63 @@ class _AdminMembrosContent extends StatefulWidget {
 }
 
 class _AdminMembrosContentState extends State<_AdminMembrosContent> {
-  void _openRegisterMember() {
-    Navigator.of(context, rootNavigator: true).push(
+  Future<void> _openRegisterMember() async {
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(builder: (_) => const RegisterMemberView()),
     );
+    if (context.mounted) context.read<AdminMembersViewModel>().refresh();
+  }
+
+  Future<void> _openEditMember(MemberModel member) async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => RegisterMemberView(member: member)),
+    );
+    if (context.mounted) context.read<AdminMembersViewModel>().refresh();
+  }
+
+  Future<void> _confirmDelete(BuildContext ctx, String id, String name) async {
+    final ext = ctx.athlos;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: ext.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remover membro', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        content: Text('Tem certeza que deseja remover $name?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Remover', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && ctx.mounted) {
+      ctx.read<AdminMembersViewModel>().removeMember(id);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminMembersViewModel>();
     final ext = context.athlos;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: AppBar(
         backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
-        leading: Padding(padding: const EdgeInsets.all(10),
-          child: CircleAvatar(backgroundColor: ext.primaryColor.withOpacity(0.15),
-            child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+        leading: Padding(
+          padding: const EdgeInsets.all(10),
+          child: CircleAvatar(
+            backgroundColor: ext.primaryColor.withOpacity(0.15),
+            child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+          ),
+        ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Athlos Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary)),
           Text('GESTÃO DE MEMBROS', style: TextStyle(fontSize: 10, color: ext.textSecondary)),
@@ -325,63 +365,134 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
             child: ElevatedButton.icon(
               onPressed: _openRegisterMember,
               icon: const Icon(Icons.person_add, size: 13, color: Colors.white),
-              label: const Text('Add New Member', style: TextStyle(fontSize: 11, color: Colors.white)),
+              label: const Text('Novo Membro', style: TextStyle(fontSize: 11, color: Colors.white)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ext.primaryColor,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
           ),
         ],
-        bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: ext.borderColor)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: ext.borderColor),
+        ),
       ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        Text('Membros da atlética', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('Membros da atlética', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          Text('${vm.members.length} membros', style: TextStyle(fontSize: 12, color: ext.textSecondary)),
+        ]),
         const SizedBox(height: 12),
+
+        // Busca + Filtro de status
         Row(children: [
           Expanded(child: AthlosTextField(
             hint: 'Buscar membro...',
             onChanged: (v) => context.read<AdminMembersViewModel>().setSearchQuery(v),
           )),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8), border: Border.all(color: ext.borderColor)),
-            child: Row(children: [
-              Text('Ativos', style: TextStyle(fontSize: 12, color: ext.textSecondary)),
-              const SizedBox(width: 4),
-              Icon(Icons.expand_more, size: 14, color: ext.textSecondary),
-            ])),
+          PopupMenuButton<String>(
+            onSelected: (v) => context.read<AdminMembersViewModel>().setStatusFilter(v),
+            color: ext.surfaceColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: ext.borderColor),
+            ),
+            itemBuilder: (_) => AdminMembersViewModel.statusFilters
+                .map((f) => PopupMenuItem(
+                      value: f,
+                      child: Text(f, style: TextStyle(fontSize: 13, color: ext.textPrimary)),
+                    ))
+                .toList(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: ext.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: ext.borderColor),
+              ),
+              child: Row(children: [
+                Text(vm.statusFilter, style: TextStyle(fontSize: 12, color: ext.textSecondary)),
+                const SizedBox(width: 4),
+                Icon(Icons.expand_more, size: 14, color: ext.textSecondary),
+              ]),
+            ),
+          ),
         ]),
         const SizedBox(height: 14),
-        ...vm.members.map((m) {
-          final isActive = m.status == 'ATIVO';
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: ext.surfaceColor, borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: m.isAdmin ? ext.primaryColor.withOpacity(0.3) : ext.borderColor)),
-            child: Row(children: [
+
+        if (vm.members.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Text('Nenhum membro encontrado.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+            ),
+          ),
+
+        ...vm.members.map((m) => Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: ext.surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: m.isPresident
+                  ? ext.primaryColor.withOpacity(0.5)
+                  : ext.borderColor,
+            ),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
               AthlosAvatar(name: m.name, size: 40),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(m.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
+                Row(children: [
+                  Flexible(child: Text(m.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary), overflow: TextOverflow.ellipsis)),
+                  if (m.isPresident) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(4)),
+                      child: const Text('PRES', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ]),
+                const SizedBox(height: 2),
                 Text(m.role, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
+                if (m.email.isNotEmpty)
+                  Text(m.email, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
               ])),
               StatusBadge(label: m.status),
-              const SizedBox(width: 8),
-              GestureDetector(
-                child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6)),
-                  child: Text('Edit', style: TextStyle(fontSize: 10, color: ext.textSecondary)))),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: () => context.read<AdminMembersViewModel>().removeMember(m.id),
-                child: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444))),
             ]),
-          );
-        }).toList(),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () => _openEditMember(m),
+                icon: Icon(Icons.edit_outlined, size: 13, color: ext.primaryColor),
+                label: Text('Editar', style: TextStyle(fontSize: 12, color: ext.primaryColor)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: ext.borderColor),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  minimumSize: Size.zero,
+                ),
+              )),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => _confirmDelete(context, m.id, m.name),
+                icon: const Icon(Icons.delete_outline, size: 13, color: Color(0xFFEF4444)),
+                label: const Text('Remover', style: TextStyle(fontSize: 12, color: Color(0xFFEF4444))),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFEF4444)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: Size.zero,
+                ),
+              ),
+            ]),
+          ]),
+        )).toList(),
       ]),
     );
   }

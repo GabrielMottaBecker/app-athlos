@@ -68,6 +68,9 @@ class MemberModel {
   final String name;
   final String role;
   final String status;
+  final String email;
+  final String ra;
+  final String curso;
   final bool isAdmin;
   final bool isPresident;
   final bool isCurrentUser;
@@ -78,16 +81,33 @@ class MemberModel {
     required this.name,
     required this.role,
     required this.status,
+    this.email = '',
+    this.ra = '',
+    this.curso = '',
     this.isAdmin = false,
     this.isPresident = false,
     this.isCurrentUser = false,
   });
 
-  MemberModel copyWith({String? role, String? status}) => MemberModel(
-    id: id, rank: rank, name: name,
+  MemberModel copyWith({
+    String? name,
+    String? role,
+    String? status,
+    String? email,
+    String? ra,
+    String? curso,
+  }) => MemberModel(
+    id: id,
+    rank: rank,
+    name: name ?? this.name,
     role: role ?? this.role,
     status: status ?? this.status,
-    isAdmin: isAdmin, isPresident: isPresident, isCurrentUser: isCurrentUser,
+    email: email ?? this.email,
+    ra: ra ?? this.ra,
+    curso: curso ?? this.curso,
+    isAdmin: isAdmin,
+    isPresident: isPresident,
+    isCurrentUser: isCurrentUser,
   );
 }
 

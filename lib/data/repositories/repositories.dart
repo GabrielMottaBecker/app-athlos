@@ -84,26 +84,38 @@ class EventRepository {
 
 // ─── Member Repository ────────────────────────────────────────────────────────
 class MemberRepository {
+  static final MemberRepository _instance = MemberRepository._internal();
+  factory MemberRepository() => _instance;
+  MemberRepository._internal();
+
   final List<MemberModel> _members = [
-    const MemberModel(id: '1', rank: 1, name: 'Gabriel Breier', role: 'PRESIDENTE', status: 'ATIVO', isPresident: true),
-    const MemberModel(id: '2', rank: 2, name: 'Rita Lee', role: 'VICE-PRESIDENTE', status: 'ATIVO'),
-    const MemberModel(id: '3', rank: 3, name: 'Lucas Oliveira', role: 'FINANCEIRO', status: 'ATIVO'),
-    const MemberModel(id: '4', rank: 4, name: 'Mariana Costa', role: 'MARKETING', status: 'ATIVO'),
-    const MemberModel(id: '5', rank: 5, name: 'Ricardo Silva', role: 'DIRETOR', status: 'ATIVO'),
-    const MemberModel(id: '6', rank: 24, name: 'Você (Gustavo)', role: 'MEMBRO COMUM', status: 'ATIVO', isCurrentUser: true),
-    // Admin members
-    const MemberModel(id: '7', rank: 1, name: 'Jordan Alexander', role: 'ADMIN', status: 'ATIVO', isAdmin: true),
-    const MemberModel(id: '8', rank: 2, name: 'Sarah Chan', role: 'MEMBRO', status: 'ATIVO'),
-    const MemberModel(id: '9', rank: 3, name: 'Marcus Rodriguez', role: 'MEMBRO', status: 'INATIVO'),
-    const MemberModel(id: '10', rank: 4, name: 'Elena Motrova', role: 'MEMBRO', status: 'ATIVO'),
-    const MemberModel(id: '11', rank: 5, name: 'David Thompson', role: 'MEMBRO', status: 'ATIVO'),
+    const MemberModel(id: '1', rank: 1, name: 'Gabriel Breier', role: 'PRESIDENTE', status: 'ATIVO', email: 'gabriel@atletica.com', ra: '100001', curso: 'Administração', isPresident: true),
+    const MemberModel(id: '2', rank: 2, name: 'Rita Lee', role: 'VICE-PRESIDENTE', status: 'ATIVO', email: 'rita@atletica.com', ra: '100002', curso: 'Direito'),
+    const MemberModel(id: '3', rank: 3, name: 'Lucas Oliveira', role: 'FINANCEIRO', status: 'ATIVO', email: 'lucas@atletica.com', ra: '100003', curso: 'Economia'),
+    const MemberModel(id: '4', rank: 4, name: 'Mariana Costa', role: 'MARKETING', status: 'ATIVO', email: 'mariana@atletica.com', ra: '100004', curso: 'Publicidade'),
+    const MemberModel(id: '5', rank: 5, name: 'Ricardo Silva', role: 'DIRETOR', status: 'ATIVO', email: 'ricardo@atletica.com', ra: '100005', curso: 'Engenharia'),
+    const MemberModel(id: '6', rank: 6, name: 'Você (Gustavo)', role: 'MEMBRO', status: 'ATIVO', email: 'gustavo@atletica.com', ra: '100006', curso: 'Ciência da Computação', isCurrentUser: true),
+    const MemberModel(id: '7', rank: 7, name: 'Jordan Alexander', role: 'COORDENADOR', status: 'ATIVO', email: 'jordan@atletica.com', ra: '100007', curso: 'Físca'),
+    const MemberModel(id: '8', rank: 8, name: 'Sarah Chan', role: 'MEMBRO', status: 'ATIVO', email: 'sarah@atletica.com', ra: '100008', curso: 'Medicina'),
+    const MemberModel(id: '9', rank: 9, name: 'Marcus Rodriguez', role: 'MEMBRO', status: 'INATIVO', email: 'marcus@atletica.com', ra: '100009', curso: 'Arquitetura'),
+    const MemberModel(id: '10', rank: 10, name: 'Elena Motrova', role: 'MEMBRO', status: 'ATIVO', email: 'elena@atletica.com', ra: '100010', curso: 'Psicologia'),
+    const MemberModel(id: '11', rank: 11, name: 'David Thompson', role: 'MEMBRO', status: 'INATIVO', email: 'david@atletica.com', ra: '100011', curso: 'Matemática'),
   ];
 
   List<MemberModel> getUserMembers() => _members.where((m) => !m.isAdmin).toList();
-  List<MemberModel> getAdminMembers() => _members.where((m) => m.isAdmin || !m.isPresident).take(5).toList();
+  List<MemberModel> getAdminMembers() => List.of(_members);
 
   void addMember(MemberModel member) => _members.add(member);
+
+  void updateMember(MemberModel updated) {
+    final i = _members.indexWhere((m) => m.id == updated.id);
+    if (i != -1) _members[i] = updated;
+  }
+
   void removeMember(String id) => _members.removeWhere((m) => m.id == id);
+
+  int get nextRank =>
+      _members.isEmpty ? 1 : _members.map((m) => m.rank).reduce((a, b) => a > b ? a : b) + 1;
 }
 
 // ─── Agenda Repository ────────────────────────────────────────────────────────
