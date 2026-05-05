@@ -1,3 +1,10 @@
+email: gabriel@atletica.com   senha: 123456   role: president   destino: PresidentOnboardingView
+email: gustavo@atletica.com   senha: 123456   role: user        destino: UserMainView
+
+
+
+
+
 # product_app
 
 A new Flutter project.

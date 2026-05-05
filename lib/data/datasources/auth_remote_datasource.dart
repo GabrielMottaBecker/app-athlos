@@ -1,35 +1,48 @@
-import 'package:dio/dio.dart';
-import '../models/auth_model.dart';
+// lib/data/datasources/auth_remote_datasource.dart
+import '../models/models.dart';
+import '../repositories/repositories.dart';
 import 'token_local_datasource.dart';
-import '../../core/network/dio_client.dart';
+
 
 class AuthRemoteDatasource {
-  static final _dio = DioClient.instance;
 
   static Future<AuthModel> login(String email, String password) async {
-    final res = await _dio.post('/auth/login', data: {
-      'email': email,
-      'password': password,
-    });
-    final auth = AuthModel.fromJson(res.data);
+
+    final members = MemberRepository().getAdminMembers();
+    final member = members.cast<MemberModel?>().firstWhere(
+      (m) => m!.email == email && m.senha == password,
+      orElse: () => null,
+    );
+
+    if (member == null) {
+      throw Exception('Credenciais inválidas');
+    }
+
+    final String role;
+    if (member.isAdmin) {
+      role = 'admin';
+    } else if (member.isPresident) {
+      role = 'president';
+    } else {
+      role = 'user';
+    }
+
+    final auth = AuthModel(
+      accessToken:  'mock_token_${member.id}',
+      refreshToken: 'mock_refresh_${member.id}',
+      role:          role,
+    );
+
     await TokenLocalDatasource.saveTokens(auth.accessToken, auth.refreshToken);
     return auth;
   }
 
   static Future<void> refreshToken() async {
-    final refreshToken = await TokenLocalDatasource.getRefreshToken();
-    if (refreshToken == null) throw Exception('Sem refresh token');
-
-    final res = await _dio.post('/auth/refresh', data: {
-      'refreshToken': refreshToken,
-    });
-    final newAccess = res.data['accessToken'];
-    await TokenLocalDatasource.saveTokens(newAccess, refreshToken);
+    await Future.delayed(const Duration(milliseconds: 300));
+    // No mock não precisa fazer nada
   }
 
   static Future<void> logout() async {
-    final refreshToken = await TokenLocalDatasource.getRefreshToken();
-    await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
     await TokenLocalDatasource.clearTokens();
   }
 }

@@ -29,6 +29,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
   final _emailController = TextEditingController();
   final _raController = TextEditingController();
   final _cursoController = TextEditingController();
+  final _senhaController = TextEditingController();
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
       _emailController.text = m.email;
       _raController.text = m.ra;
       _cursoController.text = m.curso;
+      _senhaController.text = m.senha;
     }
   }
 
@@ -48,6 +50,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
     _emailController.dispose();
     _raController.dispose();
     _cursoController.dispose();
+    _senhaController.dispose();
     super.dispose();
   }
 
@@ -89,6 +92,13 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
               AthlosTextField(hint: 'Ex: Lucas Silva de Oliveira', label: 'NOME COMPLETO', controller: _nameController),
               const SizedBox(height: 12),
               AthlosTextField(hint: 'lucas@email.com', label: 'EMAIL', controller: _emailController, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              AthlosTextField(
+              hint: '••••••••',
+              label: 'SENHA',
+              controller: _senhaController,
+              obscureText: true,
+              ),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: AthlosTextField(hint: '000000', label: 'RA', controller: _raController, keyboardType: TextInputType.number)),
@@ -222,6 +232,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                   email: _emailController.text,
                   ra: _raController.text,
                   curso: _cursoController.text,
+                  senha: _senhaController.text,
                 );
                 if (ok && context.mounted) Navigator.pop(context);
               },

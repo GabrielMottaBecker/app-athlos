@@ -397,6 +397,7 @@ class RegisterMemberViewModel extends ChangeNotifier {
     required String email,
     required String ra,
     required String curso,
+    required String senha,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -410,6 +411,7 @@ class RegisterMemberViewModel extends ChangeNotifier {
         email: email.trim(),
         ra: ra.trim(),
         curso: curso.trim(),
+        senha: senha.trim(),
       ));
     } else {
       _repo.addMember(MemberModel(
@@ -421,6 +423,7 @@ class RegisterMemberViewModel extends ChangeNotifier {
         email: email.trim(),
         ra: ra.trim(),
         curso: curso.trim(),
+        senha: senha.trim(),
       ));
     }
 

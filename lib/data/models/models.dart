@@ -1,3 +1,4 @@
+export 'auth_model.dart';
 // ─── Post Model ───────────────────────────────────────────────────────────────
 class PostModel {
   final String id;
@@ -74,6 +75,7 @@ class MemberModel {
   final bool isAdmin;
   final bool isPresident;
   final bool isCurrentUser;
+  final String senha;
 
   const MemberModel({
     required this.id,
@@ -87,6 +89,7 @@ class MemberModel {
     this.isAdmin = false,
     this.isPresident = false,
     this.isCurrentUser = false,
+    required this.senha,
   });
 
   MemberModel copyWith({
@@ -96,6 +99,7 @@ class MemberModel {
     String? email,
     String? ra,
     String? curso,
+    String? senha,
   }) => MemberModel(
     id: id,
     rank: rank,
@@ -108,6 +112,7 @@ class MemberModel {
     isAdmin: isAdmin,
     isPresident: isPresident,
     isCurrentUser: isCurrentUser,
+    senha: senha ?? this.senha,
   );
 }
 
