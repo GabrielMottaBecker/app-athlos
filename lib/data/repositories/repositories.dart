@@ -54,32 +54,47 @@ class ProductRepository {
 
 // ─── Event Repository ─────────────────────────────────────────────────────────
 class EventRepository {
-  static const List<EventModel> _events = [
-    EventModel(
+  static final EventRepository _instance = EventRepository._internal();
+  factory EventRepository() => _instance;
+  EventRepository._internal();
+
+  final List<EventModel> _events = [
+    const EventModel(
       id: '1', date: 'JUN 14', type: 'TREINO', typeColor: 0xFF10B981,
       title: 'TREINO DE FUTEBOL',
       time: '19:00 – 21:00', place: 'Campo de Treinamento Alpha',
       bgColor: 0xFF1E3A5F,
     ),
-    EventModel(
+    const EventModel(
       id: '2', date: 'JUN 18', type: 'EVENTO SOCIAL', typeColor: 0xFFF59E0B,
       title: 'FESTA DA ATLÉTICA',
       time: '22:00 – 04:00', place: 'Club Hype – Setor Sul',
       bgColor: 0xFF3A1E5F,
     ),
-    EventModel(
-      id: '3', date: 'JUN 22', type: 'COMPETIÇÃO', typeColor: 0xFFEF4444,
+    const EventModel(
+      id: '3', date: 'JUN 22', type: 'EXTRAS', typeColor: 0xFF8B5CF6,
       title: 'INTER-ATLÉTICAS 2024',
       time: '08:00 – 18:00', place: 'Ginásio Poliesportivo Central',
-      bgColor: 0xFF1E3A2F,
+      bgColor: 0xFF2E1E5F,
     ),
   ];
 
   List<EventModel> getEvents({String filter = 'Todo'}) {
-    if (filter == 'Todo') return _events;
-    final map = {'Treinos': 'TREINO', 'Eventos': 'EVENTO SOCIAL', 'Competições': 'COMPETIÇÃO'};
+    if (filter == 'Todo') return List.of(_events);
+    final map = {'Treinos': 'TREINO', 'Eventos': 'EVENTO SOCIAL', 'Extras': 'EXTRAS'};
     return _events.where((e) => e.type == (map[filter] ?? filter)).toList();
   }
+
+  void addEvent(EventModel event) => _events.add(event);
+
+  void updateEvent(EventModel updated) {
+    final i = _events.indexWhere((e) => e.id == updated.id);
+    if (i != -1) _events[i] = updated;
+  }
+
+  void removeEvent(String id) => _events.removeWhere((e) => e.id == id);
+
+  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
 }
 
 // ─── Member Repository ────────────────────────────────────────────────────────

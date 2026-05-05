@@ -1,5 +1,6 @@
 import 'package:athlos/core/theme/theme_notifier.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // ─── Athlos Avatar ────────────────────────────────────────────────────────────
 class AthlosAvatar extends StatelessWidget {
@@ -218,13 +219,17 @@ class AthlosTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final int maxLines;
   final bool obscureText;
+  final bool readOnly;
   final Widget? suffixIcon;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AthlosTextField({
     super.key, required this.hint, this.label,
     this.controller, this.keyboardType, this.maxLines = 1,
-    this.obscureText = false, this.suffixIcon, this.onChanged,
+    this.obscureText = false, this.readOnly = false,
+    this.suffixIcon, this.onChanged, this.onTap, this.inputFormatters,
   });
 
   @override
@@ -243,7 +248,10 @@ class AthlosTextField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLines: maxLines,
           obscureText: obscureText,
+          readOnly: readOnly,
           onChanged: onChanged,
+          onTap: onTap,
+          inputFormatters: inputFormatters,
           style: TextStyle(fontSize: 13, color: ext.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
