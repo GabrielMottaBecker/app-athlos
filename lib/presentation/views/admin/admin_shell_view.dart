@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/theme_notifier.dart';
-import '../../data/models/models.dart';
+import '../../../core/theme/theme_notifier.dart';
+import '../../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import 'register_member_view.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/theme_notifier.dart';
-import 'views/auth/login_view.dart';
+import 'presentation/views/auth/login_view.dart';
 
 void main() {
   runApp(

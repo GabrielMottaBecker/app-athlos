@@ -1,26 +1,53 @@
 import 'package:flutter/material.dart';
-import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
-import '../core/theme/theme_notifier.dart';
+import '../../data/models/models.dart';
+import '../../data/repositories/repositories.dart';
+import '../../core/theme/theme_notifier.dart';
+import '../../domain/entities/auth_entity.dart';
+import '../../domain/usecases/login_usecase.dart';
+import '../../data/repositories/auth_repository_impl.dart';
+import '../../core/errors/failures.dart';
 
-// ─── Auth ViewModel ───────────────────────────────────────────────────────────
+enum AuthState { idle, loading, success, error }
+
 class AuthViewModel extends ChangeNotifier {
-  bool _obscurePassword = true;
-  bool _isLoading = false;
+  final LoginUseCase _loginUseCase;
 
-  bool get obscurePassword => _obscurePassword;
-  bool get isLoading => _isLoading;
+  // Cria o repositório internamente se não for injetado
+  AuthViewModel({LoginUseCase? loginUseCase})
+      : _loginUseCase = loginUseCase ?? LoginUseCase(AuthRepositoryImpl());
+
+  AuthState state       = AuthState.idle;
+  String?   errorMessage;
+  String?   role;
+  bool      obscurePassword = true;
 
   void togglePasswordVisibility() {
-    _obscurePassword = !_obscurePassword;
+    obscurePassword = !obscurePassword;
     notifyListeners();
   }
 
-  Future<void> login() async {
-    _isLoading = true;
+  Future<void> login(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      errorMessage = 'Preencha todos os campos';
+      state = AuthState.error;
+      notifyListeners();
+      return;
+    }
+
+    state = AuthState.loading;
+    errorMessage = null;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300));
-    _isLoading = false;
+
+    final (AuthEntity? auth, Failure? failure) =
+        await _loginUseCase(email, password);
+
+    if (failure != null) {
+      state = AuthState.error;
+      errorMessage = failure.message;
+    } else {
+      role  = auth!.role;
+      state = AuthState.success;
+    }
     notifyListeners();
   }
 }
@@ -402,3 +429,4 @@ class RegisterMemberViewModel extends ChangeNotifier {
     return true;
   }
 }
+
