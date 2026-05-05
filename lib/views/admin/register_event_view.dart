@@ -78,7 +78,6 @@ class _RegisterEventContentState extends State<_RegisterEventContent> {
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
-      locale: const Locale('pt', 'BR'),
     );
     if (picked != null) {
       _dateController.text = '${_months[picked.month - 1]} ${picked.day.toString().padLeft(2, '0')}';
