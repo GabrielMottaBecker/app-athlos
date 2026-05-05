@@ -4,6 +4,7 @@ import '../../core/theme/theme_notifier.dart';
 import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
+import 'register_event_view.dart';
 import 'register_member_view.dart';
 
 class AdminShellView extends StatefulWidget {
@@ -149,67 +150,160 @@ class AdminAgendaView extends StatelessWidget {
   }
 }
 
-class _AdminAgendaContent extends StatelessWidget {
+class _AdminAgendaContent extends StatefulWidget {
   const _AdminAgendaContent();
+  @override
+  State<_AdminAgendaContent> createState() => _AdminAgendaContentState();
+}
+
+class _AdminAgendaContentState extends State<_AdminAgendaContent> {
+  Future<void> _openCreateEvent() async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const RegisterEventView()),
+    );
+    if (context.mounted) context.read<AdminAgendaViewModel>().refresh();
+  }
+
+  Future<void> _openEditEvent(EventModel event) async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => RegisterEventView(event: event)),
+    );
+    if (context.mounted) context.read<AdminAgendaViewModel>().refresh();
+  }
+
+  Future<void> _confirmDelete(BuildContext ctx, String id, String title) async {
+    final ext = ctx.athlos;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: ext.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remover evento', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        content: Text('Tem certeza que deseja remover "$title"?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Remover', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && ctx.mounted) {
+      ctx.read<AdminAgendaViewModel>().removeEvent(id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminAgendaViewModel>();
     final ext = context.athlos;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: AdminAppBar(subtitle: 'GESTÃO DA AGENDA'),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: ext.primaryColor, mini: true, onPressed: () {},
-        child: const Icon(Icons.add, color: Colors.white)),
+        backgroundColor: ext.primaryColor,
+        mini: true,
+        onPressed: _openCreateEvent,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Row(children: [
           Text('Agenda', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
           const Spacer(),
-          _Chip('${vm.todayCount} HOJE', const Color(0xFF10B981)),
+          _Chip('${vm.totalCount} EVENTOS', const Color(0xFF10B981)),
           const SizedBox(width: 8),
-          _Chip('${vm.weekCount} SEMANA', const Color(0xFFF59E0B)),
+          _Chip('${vm.treinoCount} TREINOS', const Color(0xFFF59E0B)),
         ]),
         const SizedBox(height: 16),
-        ...vm.items.map((item) {
-          final typeColor = Color(item.typeColor);
+
+        if (vm.events.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Column(children: [
+                Icon(Icons.event_outlined, size: 40, color: ext.textSecondary.withOpacity(0.4)),
+                const SizedBox(height: 10),
+                Text('Nenhum evento cadastrado.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+              ]),
+            ),
+          ),
+
+        ...vm.events.map((event) {
+          final typeColor = Color(event.typeColor);
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(color: ext.surfaceColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: ext.borderColor)),
-            child: Column(children: [
-              if (item.hasImage) Container(height: 100, decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-                child: Center(child: Icon(Icons.image_outlined, size: 32, color: ext.textSecondary.withOpacity(0.3)))),
-              Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
-                  child: Text(item.type, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor))),
-                const Spacer(),
-                Text(item.date, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
-                const SizedBox(width: 8),
-                GestureDetector(child: Icon(Icons.edit_outlined, size: 14, color: ext.textSecondary)),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => context.read<AdminAgendaViewModel>().removeItem(item.id),
-                  child: const Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444))),
-              ])),
-              Padding(padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                child: Text(item.title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary, height: 1.3))),
+            decoration: BoxDecoration(
+              color: ext.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: typeColor.withOpacity(0.25)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Header: tipo + data + ações
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
+                    child: Text(event.type, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
+                  ),
+                  const Spacer(),
+                  Text(event.date, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ext.textSecondary)),
+                  const SizedBox(width: 10),
+                  GestureDetector(
+                    onTap: () => _openEditEvent(event),
+                    child: Icon(Icons.edit_outlined, size: 16, color: ext.textSecondary),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _confirmDelete(context, event.id, event.title),
+                    child: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                  ),
+                ]),
+              ),
+              // Título
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: Text(event.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary, height: 1.3)),
+              ),
+              // Horário e local
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                child: Row(children: [
+                  Icon(Icons.access_time, size: 12, color: ext.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(event.time, style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+                  const SizedBox(width: 12),
+                  Icon(Icons.location_on_outlined, size: 12, color: ext.textSecondary),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(event.place, style: TextStyle(fontSize: 11, color: ext.textSecondary), overflow: TextOverflow.ellipsis)),
+                ]),
+              ),
             ]),
           );
         }).toList(),
+        const SizedBox(height: 72),
       ]),
     );
   }
 }
 
 class _Chip extends StatelessWidget {
-  final String label; final Color color;
+  final String label;
+  final Color color;
   const _Chip(this.label, this.color);
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-    child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)));
+    child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
+  );
 }
 
 // ─── Admin Feed View ──────────────────────────────────────────────────────────
