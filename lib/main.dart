@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/theme_notifier.dart';
 import 'views/auth/login_view.dart';
@@ -24,6 +25,13 @@ class AthlosApp extends StatelessWidget {
       title: 'Athlos',
       debugShowCheckedModeBanner: false,
       theme: themeNotifier.buildTheme(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('pt', 'BR')],
+      locale: const Locale('pt', 'BR'),
       home: const LoginView(),
     );
   }
