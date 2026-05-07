@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/theme_notifier.dart';
-import 'presentation/views/auth/login_view.dart';
+import 'presentation/views/auth/splash_view.dart'; // ← adiciona isso
 
 void main() {
   runApp(
@@ -17,14 +17,13 @@ class AthlosApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ThemeNotifier é escutado aqui — qualquer mudança de cor reconstrói o MaterialApp
     final themeNotifier = context.watch<ThemeNotifier>();
 
     return MaterialApp(
       title: 'Athlos',
       debugShowCheckedModeBanner: false,
       theme: themeNotifier.buildTheme(),
-      home: const LoginView(),
+      home: const SplashView(),
     );
   }
 }

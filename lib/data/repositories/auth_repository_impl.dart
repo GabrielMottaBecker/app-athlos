@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../../domain/entities/auth_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../../core/errors/failures.dart';
@@ -10,11 +9,8 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final auth = await AuthRemoteDatasource.login(email, password);
       return (auth, null);
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        return (null, const UnauthorizedFailure('Email ou senha inválidos'));
-      }
-      return (null, ServerFailure(e.message ?? 'Erro no servidor'));
+    } catch (e) {
+      return (null, UnauthorizedFailure(e.toString().replaceAll('Exception: ', '')));
     }
   }
 
