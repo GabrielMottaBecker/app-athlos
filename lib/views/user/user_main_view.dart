@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
@@ -208,78 +209,276 @@ class LojaView extends StatelessWidget {
 
 class _LojaContent extends StatelessWidget {
   const _LojaContent();
+
+  static const _whatsappNumber = '5545999596814';
+
+  Future<void> _openWhatsApp(String message) async {
+    final url = Uri.parse('https://wa.me/$_whatsappNumber?text=${Uri.encodeComponent(message)}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showCart(BuildContext context) {
+    final vm = context.read<LojaViewModel>();
+    final ext = context.athlos;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: vm,
+        child: _CartBottomSheet(onWhatsApp: _openWhatsApp),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<LojaViewModel>();
     final ext = context.athlos;
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: _UserAppBar(),
-      body: ListView(children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 14, 16, 0), height: 130,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [ext.primaryColor.withOpacity(0.9), Colors.black87]),
-            borderRadius: BorderRadius.circular(14),
+      body: Stack(children: [
+        ListView(children: [
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 14, 16, 0), height: 130,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [ext.primaryColor.withOpacity(0.9), Colors.black87]),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(child: Text('COLEÇÃO 2026',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2))),
           ),
-          child: const Center(child: Text('COLEÇÃO 2026',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 2))),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: FilterChipRow(
-            filters: LojaViewModel.categories,
-            activeFilter: vm.activeCategory,
-            onSelect: (c) => context.read<LojaViewModel>().setCategory(c),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: FilterChipRow(
+              filters: LojaViewModel.categories,
+              activeFilter: vm.activeCategory,
+              onSelect: (c) => context.read<LojaViewModel>().setCategory(c),
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.count(
-            shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.76,
-            children: vm.products.map((p) {
-              return Container(
-                decoration: BoxDecoration(color: ext.surfaceColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: ext.borderColor)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Expanded(child: Container(
-                    decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-                    child: Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.3))),
-                  )),
-                  Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(p.name, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 2),
-                    const SizedBox(height: 6),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Text('R\$ ${p.price.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.primaryColor)),
-                      Container(width: 26, height: 26,
-                        decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
-                        child: const Icon(Icons.add, size: 14, color: Colors.white)),
-                    ]),
-                  ])),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.count(
+              shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.76,
+              children: vm.products.map((p) {
+                final qty = vm.quantityInCart(p.id);
+                return Container(
+                  decoration: BoxDecoration(
+                    color: ext.surfaceColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: qty > 0 ? ext.primaryColor.withOpacity(0.4) : ext.borderColor),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: Stack(children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: ext.surfaceVariant,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        ),
+                        child: Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.3))),
+                      ),
+                      if (qty > 0)
+                        Positioned(top: 8, right: 8, child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(10)),
+                          child: Text('$qty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                        )),
+                    ])),
+                    Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(p.name, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 2),
+                      const SizedBox(height: 6),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text('R\$ ${p.price.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+                        if (qty == 0)
+                          GestureDetector(
+                            onTap: () => context.read<LojaViewModel>().addToCart(p),
+                            child: Container(
+                              width: 26, height: 26,
+                              decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
+                              child: const Icon(Icons.add, size: 14, color: Colors.white),
+                            ),
+                          )
+                        else
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            GestureDetector(
+                              onTap: () => context.read<LojaViewModel>().decrementCart(p.id),
+                              child: Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6), border: Border.all(color: ext.borderColor)),
+                                child: Icon(Icons.remove, size: 12, color: ext.textPrimary),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text('$qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+                            ),
+                            GestureDetector(
+                              onTap: () => context.read<LojaViewModel>().addToCart(p),
+                              child: Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
+                                child: const Icon(Icons.add, size: 12, color: Colors.white),
+                              ),
+                            ),
+                          ]),
+                      ]),
+                    ])),
+                  ]),
+                );
+              }).toList(),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('LOYALTY PROGRAM', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 1.5)),
+              const SizedBox(height: 4),
+              const Text('ATHLOS PRIME', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+              const SizedBox(height: 4),
+              Text('Get early access and free shipping on all orders.', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+                child: Text('LEARN MORE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+            ]),
+          ),
+          const SizedBox(height: 80),
+        ]),
+
+        // Barra flutuante do carrinho
+        if (vm.cartCount > 0)
+          Positioned(
+            left: 16, right: 16, bottom: 16,
+            child: GestureDetector(
+              onTap: () => _showCart(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: ext.primaryColor,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: ext.primaryColor.withOpacity(0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                ),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                    child: Text('${vm.cartCount}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Ver carrinho', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white))),
+                  Text('R\$ ${vm.cartTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.white),
                 ]),
-              );
-            }).toList(),
+              ),
+            ),
           ),
-        ),
-        Container(
-          margin: const EdgeInsets.all(16), padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(12)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('LOYALTY PROGRAM', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white70, letterSpacing: 1.5)),
-            const SizedBox(height: 4),
-            const Text('ATHLOS PRIME', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
-            const SizedBox(height: 4),
-            Text('Get early access and free shipping on all orders.', style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8))),
-            const SizedBox(height: 12),
+      ]),
+    );
+  }
+}
+
+class _CartBottomSheet extends StatelessWidget {
+  final Future<void> Function(String) onWhatsApp;
+  const _CartBottomSheet({required this.onWhatsApp});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<LojaViewModel>();
+    final ext = context.athlos;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: ext.surfaceColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 36, height: 4, decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        Row(children: [
+          Text('Seu Pedido', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              vm.clearCart();
+              Navigator.pop(context);
+            },
+            child: Text('Limpar', style: TextStyle(fontSize: 12, color: ext.textSecondary)),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        ...vm.cart.map((item) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-              child: Text('LEARN MORE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+              width: 44, height: 44,
+              decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+              child: Icon(Icons.checkroom_outlined, size: 20, color: ext.textSecondary.withOpacity(0.4)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(item.product.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text('R\$ ${item.product.price.toStringAsFixed(2)} un.', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+            ])),
+            Row(children: [
+              GestureDetector(
+                onTap: () => vm.decrementCart(item.product.id),
+                child: Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6), border: Border.all(color: ext.borderColor)),
+                  child: Icon(Icons.remove, size: 13, color: ext.textPrimary),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text('${item.quantity}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+              ),
+              GestureDetector(
+                onTap: () => vm.addToCart(item.product),
+                child: Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.add, size: 13, color: Colors.white),
+                ),
+              ),
+            ]),
+            const SizedBox(width: 12),
+            Text('R\$ ${item.subtotal.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.primaryColor)),
           ]),
-        ),
+        )),
+        const SizedBox(height: 8),
+        Divider(color: ext.borderColor),
+        const SizedBox(height: 8),
+        Row(children: [
+          Text('Total', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ext.textPrimary)),
+          const Spacer(),
+          Text('R\$ ${vm.cartTotal.toStringAsFixed(2)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: ext.primaryColor)),
+        ]),
+        const SizedBox(height: 16),
+        SizedBox(width: double.infinity, child: ElevatedButton.icon(
+          onPressed: () async {
+            Navigator.pop(context);
+            await onWhatsApp(vm.whatsappMessage);
+          },
+          icon: const Icon(Icons.chat_outlined, size: 18, color: Colors.white),
+          label: const Text('Falar no WhatsApp', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF25D366),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        )),
       ]),
     );
   }
