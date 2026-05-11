@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/theme_notifier.dart';
@@ -6,6 +7,9 @@ import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import 'register_event_view.dart';
 import 'register_member_view.dart';
+import 'register_product_view.dart';
+import 'register_post_view.dart';
+import '../auth/login_view.dart';
 
 class AdminShellView extends StatefulWidget {
   const AdminShellView({super.key});
@@ -44,6 +48,36 @@ class _AdminShellViewState extends State<AdminShellView> {
   }
 }
 
+// ─── Logout helper ────────────────────────────────────────────────────────────
+Future<void> _confirmLogout(BuildContext context) async {
+  final ext = context.athlos;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      backgroundColor: ext.surfaceColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Sair da conta', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+      content: Text('Tem certeza que deseja sair?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, false),
+          child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, true),
+          child: Text('Sair', style: TextStyle(color: ext.primaryColor, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (r) => false,
+    );
+  }
+}
+
 // ─── Admin AppBar ─────────────────────────────────────────────────────────────
 class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String subtitle;
@@ -64,8 +98,11 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
         Text(subtitle, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
       ]),
       actions: actions ?? [
-        IconButton(icon: Icon(Icons.add_circle_outline, color: ext.primaryColor, size: 22), onPressed: () {}),
-        IconButton(icon: Icon(Icons.more_vert, color: ext.textSecondary, size: 22), onPressed: () {}),
+        IconButton(
+          icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
+          tooltip: 'Sair',
+          onPressed: () => _confirmLogout(context),
+        ),
       ],
       bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: ext.borderColor)),
     );
@@ -84,8 +121,53 @@ class AdminLojaView extends StatelessWidget {
   }
 }
 
-class _AdminLojaContent extends StatelessWidget {
+class _AdminLojaContent extends StatefulWidget {
   const _AdminLojaContent();
+  @override
+  State<_AdminLojaContent> createState() => _AdminLojaContentState();
+}
+
+class _AdminLojaContentState extends State<_AdminLojaContent> {
+  Future<void> _openCreateProduct() async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const RegisterProductView()),
+    );
+    if (context.mounted) context.read<AdminLojaViewModel>().refresh();
+  }
+
+  Future<void> _openEditProduct(ProductModel product) async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => RegisterProductView(product: product)),
+    );
+    if (context.mounted) context.read<AdminLojaViewModel>().refresh();
+  }
+
+  Future<void> _confirmDelete(BuildContext ctx, String id, String name) async {
+    final ext = ctx.athlos;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: ext.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remover produto', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        content: Text('Tem certeza que deseja remover "$name"?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Remover', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && ctx.mounted) {
+      ctx.read<AdminLojaViewModel>().removeProduct(id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminLojaViewModel>();
@@ -95,7 +177,7 @@ class _AdminLojaContent extends StatelessWidget {
       backgroundColor: ext.backgroundColor,
       appBar: AdminAppBar(subtitle: 'GESTÃO DA LOJA'),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: ext.primaryColor, mini: true, onPressed: () {},
+        backgroundColor: ext.primaryColor, mini: true, onPressed: _openCreateProduct,
         child: const Icon(Icons.add, color: Colors.white)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         AthlosCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -112,27 +194,49 @@ class _AdminLojaContent extends StatelessWidget {
           ),
         ])),
         const SizedBox(height: 14),
+        if (vm.products.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Column(children: [
+                Icon(Icons.store_outlined, size: 40, color: ext.textSecondary.withOpacity(0.4)),
+                const SizedBox(height: 10),
+                Text('Nenhum produto cadastrado.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+              ]),
+            ),
+          ),
         ...vm.products.map((p) => Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(color: ext.surfaceColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: ext.borderColor)),
           child: Column(children: [
-            Container(height: 140, decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
-              child: Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25)))),
+            Container(
+              height: 140,
+              decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
+              child: p.imagePath != null
+                ? ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Image.file(File(p.imagePath!), width: double.infinity, height: 140, fit: BoxFit.cover),
+                  )
+                : Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25))),
+            ),
             Padding(padding: const EdgeInsets.all(12), child: Row(children: [
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(p.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ext.textPrimary)),
-                Text('• adicionar tamanhos', style: TextStyle(fontSize: 10, color: ext.textSecondary)),
+                Text(p.tag, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
               ])),
-              Text('R\$ ${p.price.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+              Text('R\$ ${p.price.toStringAsFixed(2).replaceAll('.', ',')}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.primaryColor)),
               const SizedBox(width: 10),
-              GestureDetector(child: Icon(Icons.edit_outlined, size: 16, color: ext.textSecondary)),
+              GestureDetector(
+                onTap: () => _openEditProduct(p),
+                child: Icon(Icons.edit_outlined, size: 16, color: ext.textSecondary)),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => context.read<AdminLojaViewModel>().removeProduct(p.id),
+                onTap: () => _confirmDelete(context, p.id, p.name),
                 child: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444))),
             ])),
           ]),
         )).toList(),
+        const SizedBox(height: 72),
       ]),
     );
   }
@@ -318,8 +422,53 @@ class AdminFeedView extends StatelessWidget {
   }
 }
 
-class _AdminFeedContent extends StatelessWidget {
+class _AdminFeedContent extends StatefulWidget {
   const _AdminFeedContent();
+  @override
+  State<_AdminFeedContent> createState() => _AdminFeedContentState();
+}
+
+class _AdminFeedContentState extends State<_AdminFeedContent> {
+  Future<void> _openCreatePost() async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const RegisterPostView()),
+    );
+    if (context.mounted) context.read<AdminFeedViewModel>().refresh();
+  }
+
+  Future<void> _openEditPost(PostModel post) async {
+    await Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => RegisterPostView(post: post)),
+    );
+    if (context.mounted) context.read<AdminFeedViewModel>().refresh();
+  }
+
+  Future<void> _confirmDelete(BuildContext ctx, String id, String title) async {
+    final ext = ctx.athlos;
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: ext.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Remover postagem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        content: Text('Tem certeza que deseja remover esta postagem?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Remover', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && ctx.mounted) {
+      ctx.read<AdminFeedViewModel>().removePost(id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AdminFeedViewModel>();
@@ -329,7 +478,7 @@ class _AdminFeedContent extends StatelessWidget {
       backgroundColor: ext.backgroundColor,
       appBar: AdminAppBar(subtitle: 'GESTÃO DO FEED'),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: ext.primaryColor, mini: true, onPressed: () {},
+        backgroundColor: ext.primaryColor, mini: true, onPressed: _openCreatePost,
         child: const Icon(Icons.add, color: Colors.white)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         AthlosTextField(
@@ -339,6 +488,17 @@ class _AdminFeedContent extends StatelessWidget {
         const SizedBox(height: 14),
         Text('Postagens Recentes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
         const SizedBox(height: 10),
+        if (vm.posts.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Column(children: [
+                Icon(Icons.article_outlined, size: 40, color: ext.textSecondary.withOpacity(0.4)),
+                const SizedBox(height: 10),
+                Text('Nenhuma postagem encontrada.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+              ]),
+            ),
+          ),
         ...vm.posts.map((p) {
           final typeColor = Color(p.categoryColor);
           return Container(
@@ -360,10 +520,12 @@ class _AdminFeedContent extends StatelessWidget {
                 Text(p.timeAgo, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
               ])),
               const SizedBox(width: 8),
-              GestureDetector(child: Icon(Icons.edit_outlined, size: 14, color: ext.textSecondary)),
+              GestureDetector(
+                onTap: () => _openEditPost(p),
+                child: Icon(Icons.edit_outlined, size: 14, color: ext.textSecondary)),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => context.read<AdminFeedViewModel>().removePost(p.id),
+                onTap: () => _confirmDelete(context, p.id, p.title),
                 child: const Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444))),
             ]),
           );
@@ -455,7 +617,7 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
         ]),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: 8),
             child: ElevatedButton.icon(
               onPressed: _openRegisterMember,
               icon: const Icon(Icons.person_add, size: 13, color: Colors.white),
@@ -467,6 +629,11 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
+            tooltip: 'Sair',
+            onPressed: () => _confirmLogout(context),
           ),
         ],
         bottom: PreferredSize(

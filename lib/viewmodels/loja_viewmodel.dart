@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../data/models/models.dart';
 import '../data/repositories/repositories.dart';
 
@@ -96,20 +97,109 @@ class AdminLojaViewModel extends ChangeNotifier {
   double get totalRevenue => _repo.totalRevenue;
   int get totalSales => _repo.totalSales;
 
-  static const List<String> categories = ['All Products', 'Camisas', 'Hoodies', 'Acessórios'];
+  static const List<String> categories = ['All Products', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'];
 
   AdminLojaViewModel() {
-    _products = _repo.getProducts();
+    _loadProducts();
+  }
+
+  void _loadProducts() {
+    _products = _repo.getProducts(category: _activeCategory);
+    notifyListeners();
   }
 
   void setCategory(String cat) {
     _activeCategory = cat;
-    _products = cat == 'All Products' ? _repo.getProducts() : _repo.getProducts(category: cat);
-    notifyListeners();
+    _loadProducts();
+  }
+
+  void addProduct(ProductModel p) {
+    _repo.addProduct(p);
+    _loadProducts();
+  }
+
+  void updateProduct(ProductModel p) {
+    _repo.updateProduct(p);
+    _loadProducts();
   }
 
   void removeProduct(String id) {
-    _products.removeWhere((p) => p.id == id);
+    _repo.removeProduct(id);
+    _loadProducts();
+  }
+
+  void refresh() => _loadProducts();
+}
+
+class RegisterProductViewModel extends ChangeNotifier {
+  final ProductRepository _repo = ProductRepository();
+  final _picker = ImagePicker();
+  final ProductModel? initialProduct;
+
+  String _selectedCategory = 'T-Shirts';
+  bool _isLoading = false;
+  XFile? _image;
+
+  static const List<String> categories = ['T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'];
+
+  String get selectedCategory => _selectedCategory;
+  bool get isLoading => _isLoading;
+  bool get isEditMode => initialProduct != null;
+  XFile? get selectedImage => _image;
+
+  RegisterProductViewModel({this.initialProduct}) {
+    if (initialProduct != null) {
+      _selectedCategory = initialProduct!.tag;
+      if (initialProduct!.imagePath != null) {
+        _image = XFile(initialProduct!.imagePath!);
+      }
+    }
+  }
+
+  void setCategory(String category) {
+    _selectedCategory = category;
     notifyListeners();
+  }
+
+  Future<void> pickImage(ImageSource source) async {
+    final img = await _picker.pickImage(source: source, imageQuality: 80);
+    if (img != null) {
+      _image = img;
+      notifyListeners();
+    }
+  }
+
+  void removeImage() {
+    _image = null;
+    notifyListeners();
+  }
+
+  Future<bool> save({required String name, required String price}) async {
+    _isLoading = true;
+    notifyListeners();
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final parsedPrice = double.tryParse(price.replaceAll(',', '.')) ?? 0.0;
+
+    if (isEditMode) {
+      _repo.updateProduct(initialProduct!.copyWith(
+        name: name.trim(),
+        price: parsedPrice,
+        tag: _selectedCategory,
+        imagePath: _image?.path,
+      ));
+    } else {
+      _repo.addProduct(ProductModel(
+        id: _repo.nextId,
+        name: name.trim(),
+        price: parsedPrice,
+        tag: _selectedCategory,
+        imagePath: _image?.path,
+      ));
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return true;
   }
 }

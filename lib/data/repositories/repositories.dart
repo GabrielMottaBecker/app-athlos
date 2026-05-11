@@ -3,23 +3,27 @@ import 'package:athlos/data/models/models.dart';
 
 // ─── Feed Repository ──────────────────────────────────────────────────────────
 class FeedRepository {
-  static const List<PostModel> _posts = [
-    PostModel(
+  static final FeedRepository _instance = FeedRepository._internal();
+  factory FeedRepository() => _instance;
+  FeedRepository._internal();
+
+  final List<PostModel> _posts = [
+    const PostModel(
       id: '1', category: 'PRESIDÊNCIA', categoryColor: 0xFF2563EB,
       title: 'Informamos que a assembleia geral foi reagendada para a próxima sexta-feira de 18:00 no auditório principal.',
       timeAgo: '2h atrás', likes: 12, comments: 3,
     ),
-    PostModel(
+    const PostModel(
       id: '2', category: 'TREINO', categoryColor: 0xFF10B981,
       title: 'Circuito de alta intensidade disponível na pista 2 hoje à tarde. Foco em explosão e resistência.',
       timeAgo: '4h atrás', likes: 28, comments: 7, hasImage: true,
     ),
-    PostModel(
+    const PostModel(
       id: '3', category: 'COMPETIÇÃO', categoryColor: 0xFFF59E0B,
       title: 'Confira o chaveamento das semifinais do torneio inter-clubes. Boa sorte a todos os atletas!',
       timeAgo: '1d atrás', likes: 45, comments: 18,
     ),
-    PostModel(
+    const PostModel(
       id: '4', category: 'AVISO', categoryColor: 0xFFEF4444,
       title: 'Novo Regulamento de Treinos: Temporada 2026. Leitura obrigatória para todos os atletas.',
       timeAgo: '2d atrás', likes: 67, comments: 22,
@@ -27,13 +31,28 @@ class FeedRepository {
   ];
 
   List<PostModel> getPosts({String filter = 'RECENTES'}) {
-    if (filter == 'RECENTES') return _posts;
+    if (filter == 'RECENTES') return List.of(_posts);
     return _posts.where((p) => p.category == filter).toList();
   }
+
+  void addPost(PostModel post) => _posts.insert(0, post);
+
+  void updatePost(PostModel updated) {
+    final i = _posts.indexWhere((p) => p.id == updated.id);
+    if (i != -1) _posts[i] = updated;
+  }
+
+  void removePost(String id) => _posts.removeWhere((p) => p.id == id);
+
+  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
 }
 
 // ─── Product Repository ───────────────────────────────────────────────────────
 class ProductRepository {
+  static final ProductRepository _instance = ProductRepository._internal();
+  factory ProductRepository() => _instance;
+  ProductRepository._internal();
+
   final List<ProductModel> _products = [
     const ProductModel(id: '1', name: 'Performance Tech Tee', price: 149.90, tag: 'T-Shirts'),
     const ProductModel(id: '2', name: 'Stealth Pro Hoodie', price: 289.90, tag: 'Hoodies'),
@@ -44,12 +63,22 @@ class ProductRepository {
   ];
 
   List<ProductModel> getProducts({String category = 'All Items'}) {
-    if (category == 'All Items') return _products;
+    if (category == 'All Items' || category == 'All Products') return List.of(_products);
     return _products.where((p) => p.tag == category).toList();
   }
 
+  void addProduct(ProductModel product) => _products.add(product);
+
+  void updateProduct(ProductModel updated) {
+    final i = _products.indexWhere((p) => p.id == updated.id);
+    if (i != -1) _products[i] = updated;
+  }
+
+  void removeProduct(String id) => _products.removeWhere((p) => p.id == id);
+
   double get totalRevenue => 42900.0;
   int get totalSales => 84;
+  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
 }
 
 // ─── Event Repository ─────────────────────────────────────────────────────────

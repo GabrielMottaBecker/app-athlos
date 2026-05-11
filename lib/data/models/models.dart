@@ -8,6 +8,7 @@ class PostModel {
   final int likes;
   final int comments;
   final bool hasImage;
+  final String? imagePath;
 
   const PostModel({
     required this.id,
@@ -18,8 +19,33 @@ class PostModel {
     this.likes = 0,
     this.comments = 0,
     this.hasImage = false,
+    this.imagePath,
   });
+
+  PostModel copyWith({
+    String? category,
+    int? categoryColor,
+    String? title,
+    String? timeAgo,
+    int? likes,
+    int? comments,
+    bool? hasImage,
+    Object? imagePath = _sentinel,
+  }) => PostModel(
+    id: id,
+    category: category ?? this.category,
+    categoryColor: categoryColor ?? this.categoryColor,
+    title: title ?? this.title,
+    timeAgo: timeAgo ?? this.timeAgo,
+    likes: likes ?? this.likes,
+    comments: comments ?? this.comments,
+    hasImage: hasImage ?? this.hasImage,
+    imagePath: imagePath == _sentinel ? this.imagePath : imagePath as String?,
+  );
 }
+
+// sentinel para distinguir null explícito de "não informado"
+const Object _sentinel = Object();
 
 // ─── Product Model ────────────────────────────────────────────────────────────
 class ProductModel {
@@ -28,6 +54,7 @@ class ProductModel {
   final double price;
   final String tag;
   final bool inStock;
+  final String? imagePath;
 
   const ProductModel({
     required this.id,
@@ -35,7 +62,23 @@ class ProductModel {
     required this.price,
     required this.tag,
     this.inStock = true,
+    this.imagePath,
   });
+
+  ProductModel copyWith({
+    String? name,
+    double? price,
+    String? tag,
+    bool? inStock,
+    Object? imagePath = _sentinel,
+  }) => ProductModel(
+    id: id,
+    name: name ?? this.name,
+    price: price ?? this.price,
+    tag: tag ?? this.tag,
+    inStock: inStock ?? this.inStock,
+    imagePath: imagePath == _sentinel ? this.imagePath : imagePath as String?,
+  );
 }
 
 // ─── Event Model ──────────────────────────────────────────────────────────────
