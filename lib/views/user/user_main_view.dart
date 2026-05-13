@@ -1,8 +1,11 @@
+import 'package:athlos/viewmodels/agenda_viewmodel.dart';
+import 'package:athlos/viewmodels/feed_viewmodel.dart';
+import 'package:athlos/viewmodels/loja_viewmodel.dart';
+import 'package:athlos/viewmodels/members_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/theme_notifier.dart';
-import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import '../auth/login_view.dart';
 

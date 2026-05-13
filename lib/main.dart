@@ -1,10 +1,29 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/theme_notifier.dart';
 import 'views/auth/login_view.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 1. Inicializar Firebase
+  await Firebase.initializeApp();
+
+  // 2. Inicializar serviço de notificações push
+  //    O handler de background já é registrado internamente pelo NotificationService.
+  await NotificationService.instance.init(
+    onNotificationTap: (message) {
+      // TODO: navegar para a tela de agenda quando o usuário tocar na notificação.
+      // Exemplo (implemente após ter um NavigatorKey global):
+      // navigatorKey.currentState?.push(
+      //   MaterialPageRoute(builder: (_) => const AgendaView()),
+      // );
+      debugPrint('[App] Usuário tocou na notificação: ${message.data}');
+    },
+  );
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => ThemeNotifier(),
@@ -18,20 +37,12 @@ class AthlosApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ThemeNotifier é escutado aqui — qualquer mudança de cor reconstrói o MaterialApp
     final themeNotifier = context.watch<ThemeNotifier>();
 
     return MaterialApp(
       title: 'Athlos',
       debugShowCheckedModeBanner: false,
       theme: themeNotifier.buildTheme(),
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('pt', 'BR')],
-      locale: const Locale('pt', 'BR'),
       home: const LoginView(),
     );
   }

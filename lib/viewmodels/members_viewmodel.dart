@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
+import '../../data/models/models.dart';
+import '../../data/repositories/repositories.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Participantes ViewModel (Usuário comum)
+// ─────────────────────────────────────────────────────────────────────────────
 class ParticipantesViewModel extends ChangeNotifier {
   final MemberRepository _repo = MemberRepository();
 
@@ -9,6 +12,7 @@ class ParticipantesViewModel extends ChangeNotifier {
   List<MemberModel> _members = [];
 
   String get searchQuery => _searchQuery;
+  
   List<MemberModel> get members {
     if (_searchQuery.isEmpty) return _members;
     return _members
@@ -26,6 +30,9 @@ class ParticipantesViewModel extends ChangeNotifier {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Members ViewModel (Gestão de membros - Admin)
+// ─────────────────────────────────────────────────────────────────────────────
 class AdminMembersViewModel extends ChangeNotifier {
   final MemberRepository _repo = MemberRepository();
 
@@ -35,20 +42,24 @@ class AdminMembersViewModel extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   String get statusFilter => _statusFilter;
 
+  static const List<String> statusFilters = ['Todos', 'Ativos', 'Inativos'];
+
   List<MemberModel> get members {
+    // Busca dados frescos do repositório a cada acesso
     var list = _repo.getAdminMembers();
+    
     if (_searchQuery.isNotEmpty) {
       list = list.where((m) => m.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
     }
+    
     if (_statusFilter == 'Ativos') {
       list = list.where((m) => m.status == 'ATIVO').toList();
     } else if (_statusFilter == 'Inativos') {
       list = list.where((m) => m.status == 'INATIVO').toList();
     }
+    
     return list;
   }
-
-  static const List<String> statusFilters = ['Todos', 'Ativos', 'Inativos'];
 
   void setSearchQuery(String query) {
     _searchQuery = query;
@@ -73,6 +84,9 @@ class AdminMembersViewModel extends ChangeNotifier {
   void refresh() => notifyListeners();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Register Member ViewModel (Cadastro/Edição de membros)
+// ─────────────────────────────────────────────────────────────────────────────
 class RegisterMemberViewModel extends ChangeNotifier {
   final MemberRepository _repo = MemberRepository();
   final MemberModel? initialMember;
@@ -87,8 +101,14 @@ class RegisterMemberViewModel extends ChangeNotifier {
   bool get isEditMode => initialMember != null;
 
   static const List<String> roles = [
-    'Membro', 'Diretor', 'Coordenador', 'Financeiro', 'Marketing', 'Vice-Presidente',
+    'Membro',
+    'Diretor',
+    'Coordenador',
+    'Financeiro',
+    'Marketing',
+    'Vice-Presidente',
   ];
+  
   static const List<String> statuses = ['ATIVO', 'INATIVO'];
 
   RegisterMemberViewModel({this.initialMember}) {
@@ -120,6 +140,7 @@ class RegisterMemberViewModel extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
+    
     await Future.delayed(const Duration(milliseconds: 300));
 
     if (isEditMode) {
@@ -148,4 +169,9 @@ class RegisterMemberViewModel extends ChangeNotifier {
     notifyListeners();
     return true;
   }
+
+  // Helper: getters para facilitar uso na View
+  String get pageTitle => isEditMode ? 'Editar Membro' : 'Novo Membro';
+  String get buttonText => isEditMode ? 'ATUALIZAR' : 'CADASTRAR';
+  IconData get buttonIcon => isEditMode ? Icons.edit : Icons.person_add;
 }
