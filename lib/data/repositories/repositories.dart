@@ -35,7 +35,7 @@ class FeedRepository {
     return _posts.where((p) => p.category == filter).toList();
   }
 
-  void addPost(PostModel post) => _posts.insert(0, post);
+  void addPost(PostModel post) => _posts.add(post);
 
   void updatePost(PostModel updated) {
     final i = _posts.indexWhere((p) => p.id == updated.id);
@@ -44,7 +44,7 @@ class FeedRepository {
 
   void removePost(String id) => _posts.removeWhere((p) => p.id == id);
 
-  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
+  String get nextId => 'post_${DateTime.now().millisecondsSinceEpoch}';
 }
 
 // ─── Product Repository ───────────────────────────────────────────────────────
@@ -62,6 +62,9 @@ class ProductRepository {
     const ProductModel(id: '6', name: 'Apex Field Shorts', price: 59.06, tag: 'Shorts'),
   ];
 
+  double get totalRevenue => 42900.0;
+  int get totalSales => 84;
+
   List<ProductModel> getProducts({String category = 'All Items'}) {
     if (category == 'All Items' || category == 'All Products') return List.of(_products);
     return _products.where((p) => p.tag == category).toList();
@@ -76,11 +79,8 @@ class ProductRepository {
 
   void removeProduct(String id) => _products.removeWhere((p) => p.id == id);
 
-  double get totalRevenue => 42900.0;
-  int get totalSales => 84;
-  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
+  String get nextId => 'product_${DateTime.now().millisecondsSinceEpoch}';
 }
-
 // ─── Event Repository ─────────────────────────────────────────────────────────
 class EventRepository {
   static final EventRepository _instance = EventRepository._internal();
@@ -101,16 +101,16 @@ class EventRepository {
       bgColor: 0xFF3A1E5F,
     ),
     const EventModel(
-      id: '3', date: 'JUN 22', type: 'EXTRAS', typeColor: 0xFF8B5CF6,
+      id: '3', date: 'JUN 22', type: 'COMPETIÇÃO', typeColor: 0xFFEF4444,
       title: 'INTER-ATLÉTICAS 2024',
       time: '08:00 – 18:00', place: 'Ginásio Poliesportivo Central',
-      bgColor: 0xFF2E1E5F,
+      bgColor: 0xFF1E3A2F,
     ),
   ];
 
   List<EventModel> getEvents({String filter = 'Todo'}) {
-    if (filter == 'Todo') return List.of(_events);
-    final map = {'Treinos': 'TREINO', 'Eventos': 'EVENTO SOCIAL', 'Extras': 'EXTRAS'};
+    if (filter == 'Todo') return _events;
+    final map = {'Treinos': 'TREINO', 'Eventos': 'EVENTO SOCIAL', 'Competições': 'COMPETIÇÃO'};
     return _events.where((e) => e.type == (map[filter] ?? filter)).toList();
   }
 
@@ -123,7 +123,7 @@ class EventRepository {
 
   void removeEvent(String id) => _events.removeWhere((e) => e.id == id);
 
-  String get nextId => DateTime.now().millisecondsSinceEpoch.toString();
+  String get nextId => 'event_${DateTime.now().millisecondsSinceEpoch}';
 }
 
 // ─── Member Repository ────────────────────────────────────────────────────────
@@ -133,17 +133,17 @@ class MemberRepository {
   MemberRepository._internal();
 
   final List<MemberModel> _members = [
-    const MemberModel(id: '1', rank: 1, name: 'Gabriel Breier', role: 'PRESIDENTE', status: 'ATIVO', email: 'gabriel@atletica.com', ra: '100001', curso: 'Administração', isPresident: true),
-    const MemberModel(id: '2', rank: 2, name: 'Rita Lee', role: 'VICE-PRESIDENTE', status: 'ATIVO', email: 'rita@atletica.com', ra: '100002', curso: 'Direito'),
-    const MemberModel(id: '3', rank: 3, name: 'Lucas Oliveira', role: 'FINANCEIRO', status: 'ATIVO', email: 'lucas@atletica.com', ra: '100003', curso: 'Economia'),
-    const MemberModel(id: '4', rank: 4, name: 'Mariana Costa', role: 'MARKETING', status: 'ATIVO', email: 'mariana@atletica.com', ra: '100004', curso: 'Publicidade'),
-    const MemberModel(id: '5', rank: 5, name: 'Ricardo Silva', role: 'DIRETOR', status: 'ATIVO', email: 'ricardo@atletica.com', ra: '100005', curso: 'Engenharia'),
-    const MemberModel(id: '6', rank: 6, name: 'Você (Gustavo)', role: 'MEMBRO', status: 'ATIVO', email: 'gustavo@atletica.com', ra: '100006', curso: 'Ciência da Computação', isCurrentUser: true),
-    const MemberModel(id: '7', rank: 7, name: 'Jordan Alexander', role: 'COORDENADOR', status: 'ATIVO', email: 'jordan@atletica.com', ra: '100007', curso: 'Físca'),
-    const MemberModel(id: '8', rank: 8, name: 'Sarah Chan', role: 'MEMBRO', status: 'ATIVO', email: 'sarah@atletica.com', ra: '100008', curso: 'Medicina'),
-    const MemberModel(id: '9', rank: 9, name: 'Marcus Rodriguez', role: 'MEMBRO', status: 'INATIVO', email: 'marcus@atletica.com', ra: '100009', curso: 'Arquitetura'),
-    const MemberModel(id: '10', rank: 10, name: 'Elena Motrova', role: 'MEMBRO', status: 'ATIVO', email: 'elena@atletica.com', ra: '100010', curso: 'Psicologia'),
-    const MemberModel(id: '11', rank: 11, name: 'David Thompson', role: 'MEMBRO', status: 'INATIVO', email: 'david@atletica.com', ra: '100011', curso: 'Matemática'),
+    const MemberModel(id: '1', rank: 1, name: 'Gabriel Breier', role: 'PRESIDENTE', status: 'ATIVO', email: 'gabriel@atletica.com', ra: '100001', curso: 'Administração', isPresident: true, senha: '123456'),
+    const MemberModel(id: '2', rank: 2, name: 'Rita Lee', role: 'VICE-PRESIDENTE', status: 'ATIVO', email: 'rita@atletica.com', ra: '100002', curso: 'Direito', senha: '123456'),
+    const MemberModel(id: '3', rank: 3, name: 'Lucas Oliveira', role: 'FINANCEIRO', status: 'ATIVO', email: 'lucas@atletica.com', ra: '100003', curso: 'Economia', senha: '123456'),
+    const MemberModel(id: '4', rank: 4, name: 'Mariana Costa', role: 'MARKETING', status: 'ATIVO', email: 'mariana@atletica.com', ra: '100004', curso: 'Publicidade', senha: '123456'),
+    const MemberModel(id: '5', rank: 5, name: 'Ricardo Silva', role: 'DIRETOR', status: 'ATIVO', email: 'ricardo@atletica.com', ra: '100005', curso: 'Engenharia', senha: '123456'),
+    const MemberModel(id: '6', rank: 6, name: 'Você (Gustavo)', role: 'MEMBRO', status: 'ATIVO', email: 'gustavo@atletica.com', ra: '100006', curso: 'Ciência da Computação', isCurrentUser: true, senha: '123456'),
+    const MemberModel(id: '7', rank: 7, name: 'Jordan Alexander', role: 'COORDENADOR', status: 'ATIVO', email: 'jordan@atletica.com', ra: '100007', curso: 'Físca', senha: '123456'),
+    const MemberModel(id: '8', rank: 8, name: 'Sarah Chan', role: 'MEMBRO', status: 'ATIVO', email: 'sarah@atletica.com', ra: '100008', curso: 'Medicina', senha: '123456'),
+    const MemberModel(id: '9', rank: 9, name: 'Marcus Rodriguez', role: 'MEMBRO', status: 'INATIVO', email: 'marcus@atletica.com', ra: '100009', curso: 'Arquitetura', senha: '123456'),
+    const MemberModel(id: '10', rank: 10, name: 'Elena Motrova', role: 'MEMBRO', status: 'ATIVO', email: 'elena@atletica.com', ra: '100010', curso: 'Psicologia', senha: '123456'),
+    const MemberModel(id: '11', rank: 11, name: 'Jailson Mendes', role: 'ADMIN', status: 'ATIVO', email: 'jailsonmendes@atletica.com', ra: '100012', curso: 'Psicologia', isAdmin: true, senha: '123456'),
   ];
 
   List<MemberModel> getUserMembers() => _members.where((m) => !m.isAdmin).toList();

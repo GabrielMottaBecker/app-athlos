@@ -5,6 +5,8 @@ import '../../core/theme/theme_notifier.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import '../auth/login_view.dart';
+import '../../data/datasources/token_local_datasource.dart';
+import '../../data/repositories/repositories.dart';
 
 class UserMainView extends StatefulWidget {
   const UserMainView({super.key});
@@ -638,50 +640,80 @@ class _ParticipantesContent extends StatelessWidget {
 // ─── Perfil View ──────────────────────────────────────────────────────────────
 class PerfilView extends StatelessWidget {
   const PerfilView({super.key});
+
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: ext.backgroundColor,
-      appBar: _UserAppBar(),
-      body: ListView(children: [
-        Container(
-          color: ext.surfaceColor, padding: const EdgeInsets.all(20),
-          child: Column(children: [
-            Stack(children: [
-              Container(width: 80, height: 80,
-                decoration: BoxDecoration(color: ext.primaryColor.withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: ext.primaryColor, width: 2.5)),
-                child: Center(child: Text('PA', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
-              Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
-                decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
-                child: const Icon(Icons.edit, color: Colors.white, size: 12))),
+
+    return FutureBuilder<String?>(
+      future: TokenLocalDatasource().getUserId(),
+      builder: (context, snapshot) {
+        final userId = snapshot.data;
+        final member = userId != null
+            ? MemberRepository().getAdminMembers()
+                .firstWhere((m) => m.id == userId,
+                    orElse: () => MemberRepository().getAdminMembers().first)
+            : null;
+
+        final name     = member?.name ?? 'Usuário';
+        final initials = name.split(' ').take(2).map((e) => e[0]).join().toUpperCase();
+        final cargo    = member?.role ?? 'Membro';
+
+        return Scaffold(
+          resizeToAvoidBottomInset: false,
+          backgroundColor: ext.backgroundColor,
+          appBar: _UserAppBar(),
+          body: ListView(children: [
+            Container(
+              color: ext.surfaceColor, padding: const EdgeInsets.all(20),
+              child: Column(children: [
+                Stack(children: [
+                  Container(width: 80, height: 80,
+                    decoration: BoxDecoration(color: ext.primaryColor.withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: ext.primaryColor, width: 2.5)),
+                    child: Center(child: Text(initials, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+                  Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
+                    decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
+                    child: const Icon(Icons.edit, color: Colors.white, size: 12))),
+                ]),
+                const SizedBox(height: 12),
+                Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+                const SizedBox(height: 4),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(20)),
+                  child: Text('Cargo: $cargo', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500))),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
+              _PerfilItem(icon: Icons.people_outline, label: 'Gestão de Associados', ext: ext),
+              _PerfilItem(icon: Icons.payment_outlined, label: 'Meus Pagamentos', ext: ext),
+              _PerfilItem(icon: Icons.settings_outlined, label: 'Configurações da Conta', ext: ext),
             ]),
-            const SizedBox(height: 12),
-            Text('Pedro Alves', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-            const SizedBox(height: 4),
-            Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(20)),
-              child: const Text('Cargo: Vice líder', style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500))),
+            const SizedBox(height: 8),
+            _PerfilSection(title: 'SESSÃO', ext: ext, items: [
+              _PerfilItem(
+                icon: Icons.logout,
+                label: 'Sair da Conta',
+                ext: ext,
+                isDestructive: true,
+                onTap: () async {
+                  await TokenLocalDatasource().clearTokens();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginView()),
+                    (r) => false,
+                  );
+                },
+              ),
+            ]),
+            const SizedBox(height: 80),
           ]),
-        ),
-        const SizedBox(height: 8),
-        _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
-          _PerfilItem(icon: Icons.people_outline, label: 'Gestão de Associados', ext: ext),
-          _PerfilItem(icon: Icons.payment_outlined, label: 'Meus Pagamentos', ext: ext),
-          _PerfilItem(icon: Icons.settings_outlined, label: 'Configurações da Conta', ext: ext),
-        ]),
-        const SizedBox(height: 8),
-        _PerfilSection(title: 'SESSÃO', ext: ext, items: [
-          _PerfilItem(icon: Icons.logout, label: 'Sair da Conta', ext: ext, isDestructive: true,
-            onTap: () => Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginView()), (r) => false)),
-        ]),
-        const SizedBox(height: 80),
-      ]),
-    );
+        ); // fecha Scaffold
+      },   // fecha builder
+    );     // fecha FutureBuilder
   }
 }
+
 
 class _PerfilSection extends StatelessWidget {
   final String title; final List<Widget> items; final AthlosThemeExtension ext;

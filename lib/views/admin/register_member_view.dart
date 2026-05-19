@@ -5,6 +5,7 @@ import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 
+
 class RegisterMemberView extends StatelessWidget {
   final MemberModel? member;
   const RegisterMemberView({super.key, this.member});
@@ -29,6 +30,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
   final _emailController = TextEditingController();
   final _raController = TextEditingController();
   final _cursoController = TextEditingController();
+  final _senhaController = TextEditingController();
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
     _emailController.dispose();
     _raController.dispose();
     _cursoController.dispose();
+    _senhaController.dispose();
     super.dispose();
   }
 
@@ -222,6 +225,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                   email: _emailController.text,
                   ra: _raController.text,
                   curso: _cursoController.text,
+                  senha: _senhaController.text,
                 );
                 if (ok && context.mounted) Navigator.pop(context);
               },

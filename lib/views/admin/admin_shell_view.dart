@@ -10,6 +10,7 @@ import 'register_member_view.dart';
 import 'register_product_view.dart';
 import 'register_post_view.dart';
 import '../auth/login_view.dart';
+import '../../data/datasources/token_local_datasource.dart';
 
 class AdminShellView extends StatefulWidget {
   const AdminShellView({super.key});
@@ -71,6 +72,11 @@ Future<void> _confirmLogout(BuildContext context) async {
     ),
   );
   if (confirmed == true && context.mounted) {
+    // Limpa o token antes de navegar
+    await TokenLocalDatasource().clearTokens();
+
+    if (!context.mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginView()),
       (r) => false,
