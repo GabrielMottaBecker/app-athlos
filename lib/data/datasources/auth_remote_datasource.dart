@@ -1,7 +1,7 @@
-import '../models/models.dart';
-import '../repositories/repositories.dart';
-import 'token_local_datasource.dart';
+import 'package:dio/dio.dart';
 import '../models/auth_model.dart';
+import '../datasources/token_local_datasource.dart';
+import '../../core/network/dio_client.dart';
 
 class AuthRemoteDatasource {
   final TokenLocalDatasource _tokenDatasource;
@@ -10,48 +10,54 @@ class AuthRemoteDatasource {
       : _tokenDatasource = tokenDatasource ?? TokenLocalDatasource();
 
   Future<AuthModel> login(String email, String password) async {
-    final members = MemberRepository().getAdminMembers();
-
-    final member = members.cast<MemberModel?>().firstWhere(
-      (m) => m!.email == email && m.senha == password,
-      orElse: () => null,
+    final response = await DioClient.identidade.post(
+      '/auth/login',
+      data: {'email': email, 'senha': password},
     );
 
-    if (member == null) {
-      throw Exception('Credenciais inválidas');
-    }
-
-    final String role;
-    if (member.isAdmin) {
-      role = 'admin';
-    } else if (member.isPresident) {
-      role = 'president';
-    } else {
-      role = 'user';
-    }
-
-    final auth = AuthModel(
-      accessToken:  'mock_token_${member.id}',
-      refreshToken: 'mock_refresh_${member.id}',
-      role:         role,
-      userId:       member.id.toString(), 
-    );
+    final auth = AuthModel.fromJson(response.data);
 
     await _tokenDatasource.saveTokens(
-      access:  auth.accessToken,
+      access: auth.accessToken,
       refresh: auth.refreshToken,
-      role:    auth.role,
-      userId:  auth.userId,
+      role: auth.role,
+      userId: auth.userId,
+      atleticaId: auth.atleticaId,
     );
 
     return auth;
   }
 
   Future<void> refreshToken() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    final refreshToken = await _tokenDatasource.getRefreshToken();
+    if (refreshToken == null) throw Exception('Sem refresh token');
+
+    final response = await DioClient.identidade.post(
+      '/auth/refresh',
+      data: {'refreshToken': refreshToken},
+    );
+
+    final auth = AuthModel.fromJson(response.data);
+
+    await _tokenDatasource.saveTokens(
+      access: auth.accessToken,
+      refresh: auth.refreshToken,
+      role: auth.role,
+      userId: auth.userId,
+    );
   }
 
   Future<void> logout() async {
-    await _tokenDatasource.clearTokens();
+    final refreshToken = await _tokenDatasource.getRefreshToken();
+    try {
+      await DioClient.identidade.post(
+        '/auth/logout',
+        data: {'refreshToken': refreshToken},
+      );
+    } catch (_) {
+      // mesmo com erro na API, limpa tokens locais
+    } finally {
+      await _tokenDatasource.clearTokens();
+    }
   }
 }
