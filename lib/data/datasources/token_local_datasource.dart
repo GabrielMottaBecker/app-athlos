@@ -3,18 +3,20 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class TokenLocalDatasource {
   final FlutterSecureStorage _storage;
 
-  static const _accessKey  = 'access_token';
-  static const _refreshKey = 'refresh_token';
-  static const _roleKey    = 'role';
-  static const _userIdKey  = 'user_id';
-  static const _expiryKey  = 'token_expiry';
+  static const _accessKey    = 'access_token';
+  static const _refreshKey   = 'refresh_token';
+  static const _roleKey      = 'role';
+  static const _userIdKey    = 'user_id';
+  static const _atleticaKey  = 'atletica_id';
+  static const _expiryKey    = 'token_expiry';
 
-  static const _sessionDuration = Duration(hours: 1);
+  static const _sessionDuration = Duration(hours: 24);
 
   String? _cachedAccessToken;
   String? _cachedRefreshToken;
   String? _cachedRole;
   String? _cachedUserId;
+  String? _cachedAtleticaId;
   DateTime? _cachedExpiry;
 
   TokenLocalDatasource({FlutterSecureStorage? storage})
@@ -25,6 +27,7 @@ class TokenLocalDatasource {
     required String refresh,
     required String role,
     required String userId,
+    String? atleticaId,
   }) async {
     final expiry = DateTime.now().toUtc().add(_sessionDuration);
 
@@ -34,12 +37,15 @@ class TokenLocalDatasource {
       _storage.write(key: _roleKey,    value: role),
       _storage.write(key: _userIdKey,  value: userId),
       _storage.write(key: _expiryKey,  value: expiry.toIso8601String()),
+      if (atleticaId != null)
+        _storage.write(key: _atleticaKey, value: atleticaId),
     ]);
 
     _cachedAccessToken  = access;
     _cachedRefreshToken = refresh;
     _cachedRole         = role;
     _cachedUserId       = userId;
+    _cachedAtleticaId   = atleticaId;
     _cachedExpiry       = expiry;
   }
 
@@ -51,7 +57,7 @@ class TokenLocalDatasource {
       }
       return _cachedAccessToken;
     }
-    
+
     final expiry = await _read(_expiryKey);
     if (expiry == null) return null;
 
@@ -61,8 +67,8 @@ class TokenLocalDatasource {
       return null;
     }
 
-    _cachedExpiry       = expiryDate;
-    _cachedAccessToken  = await _read(_accessKey);
+    _cachedExpiry      = expiryDate;
+    _cachedAccessToken = await _read(_accessKey);
     return _cachedAccessToken;
   }
 
@@ -81,12 +87,18 @@ class TokenLocalDatasource {
     return _cachedUserId;
   }
 
+  Future<String?> getAtleticaId() async {
+    _cachedAtleticaId ??= await _read(_atleticaKey);
+    return _cachedAtleticaId;
+  }
+
   Future<void> clearTokens() async {
     await Future.wait([
       _storage.delete(key: _accessKey),
       _storage.delete(key: _refreshKey),
       _storage.delete(key: _roleKey),
       _storage.delete(key: _userIdKey),
+      _storage.delete(key: _atleticaKey),
       _storage.delete(key: _expiryKey),
     ]);
     _clearCache();
@@ -102,6 +114,7 @@ class TokenLocalDatasource {
     _cachedRefreshToken = null;
     _cachedRole         = null;
     _cachedUserId       = null;
+    _cachedAtleticaId   = null;
     _cachedExpiry       = null;
   }
 

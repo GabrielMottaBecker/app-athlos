@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/token_local_datasource.dart';
-import '../../data/repositories/repositories.dart';
 
 enum AuthState { idle, loading, success, error }
 
@@ -11,6 +11,7 @@ class AuthViewModel extends ChangeNotifier {
   String? _role;
 
   final _tokenDs = TokenLocalDatasource();
+  final _authDs = AuthRemoteDatasource();
 
   bool get obscurePassword => _obscurePassword;
   AuthState get state => _state;
@@ -34,33 +35,12 @@ class AuthViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 800));
-
     try {
-      final members = MemberRepository().getAdminMembers();
-
-      final user = members.firstWhere(
-        (m) => m.email == email && m.senha == password,
-        orElse: () => throw Exception('E-mail ou senha incorretos.'),
-      );
-
-      if (user.isAdmin) {
-        _role = 'admin';
-      } else if (user.isPresident) {
-        _role = 'president';
-      } else {
-        _role = 'user';
-      }
-
-      await _tokenDs.saveTokens(
-        access:  'mock_access_${user.id}',
-        refresh: 'mock_refresh_${user.id}',
-        role:    _role!,
-        userId:  user.id.toString(),
-      );
+      final auth = await _authDs.login(email, password);
+      _role = auth.role;
       _state = AuthState.success;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = _parseError(e);
       _state = AuthState.error;
     }
 
@@ -68,17 +48,26 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _tokenDs.clearTokens();
+    await _authDs.logout();
     _state = AuthState.idle;
     _errorMessage = null;
     _role = null;
     notifyListeners();
   }
 
+  Future<String?> getSavedRole() => _tokenDs.getRole();
+
   void reset() {
     _state = AuthState.idle;
     _errorMessage = null;
     _role = null;
     notifyListeners();
+  }
+
+  String _parseError(Object e) {
+    if (e is Exception) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+    return 'Erro inesperado. Tente novamente.';
   }
 }
