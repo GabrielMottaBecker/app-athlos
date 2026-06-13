@@ -22,6 +22,36 @@ class PostModel {
     this.imagePath,
   });
 
+  factory PostModel.fromJson(Map<String, dynamic> json) {
+    const colorMap = {
+      'PRESIDÊNCIA': 0xFF2563EB,
+      'TREINO':      0xFF10B981,
+      'COMPETIÇÃO':  0xFFF59E0B,
+      'AVISO':       0xFFEF4444,
+      'EVENTO':      0xFFF59E0B,
+      'EXTRA':       0xFF8B5CF6,
+    };
+    final category = (json['type'] as String? ?? 'AVISO').toUpperCase();
+    return PostModel(
+      id:            json['id'] as String,
+      category:      category,
+      categoryColor: colorMap[category] ?? 0xFF2563EB,
+      title:         json['title'] as String? ?? '',
+      timeAgo:       _timeAgo(json['createdAt'] as String?),
+      likes:         0,
+      comments:      0,
+      hasImage:      false,
+    );
+  }
+
+  static String _timeAgo(String? iso) {
+    if (iso == null) return '';
+    final diff = DateTime.now().difference(DateTime.parse(iso));
+    if (diff.inMinutes < 60) return '${diff.inMinutes}min atrás';
+    if (diff.inHours < 24)   return '${diff.inHours}h atrás';
+    return '${diff.inDays}d atrás';
+  }
+
   PostModel copyWith({
     String? category,
     int? categoryColor,
@@ -102,6 +132,36 @@ class EventModel {
     required this.place,
     required this.bgColor,
   });
+
+  factory EventModel.fromJson(Map<String, dynamic> json) {
+    const typeColors = {
+      'TREINO':        0xFF10B981,
+      'EVENTO SOCIAL': 0xFFF59E0B,
+      'EVENTO':        0xFFF59E0B,
+      'COMPETIÇÃO':    0xFFEF4444,
+      'EXTRAS':        0xFF8B5CF6,
+      'EXTRA':         0xFF8B5CF6,
+    };
+    const bgColors = {
+      'TREINO':        0xFF1E3A5F,
+      'EVENTO SOCIAL': 0xFF3A1E5F,
+      'EVENTO':        0xFF3A1E5F,
+      'COMPETIÇÃO':    0xFF1E3A2F,
+      'EXTRAS':        0xFF2E1E5F,
+      'EXTRA':         0xFF2E1E5F,
+    };
+    final type = (json['type'] as String? ?? 'EVENTO').toUpperCase();
+    return EventModel(
+      id:        json['id'] as String,
+      date:      json['date'] as String? ?? '',
+      type:      type,
+      typeColor: typeColors[type] ?? 0xFF10B981,
+      title:     json['title'] as String? ?? '',
+      time:      json['time'] as String? ?? '',
+      place:     json['place'] as String? ?? '',
+      bgColor:   bgColors[type] ?? 0xFF1E3A5F,
+    );
+  }
 }
 
 // ─── Member Model ─────────────────────────────────────────────────────────────

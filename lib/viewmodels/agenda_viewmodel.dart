@@ -1,54 +1,115 @@
 import 'package:flutter/material.dart';
+import '../data/datasources/feed_remote_datasource.dart';
+import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
 
+// ─── Agenda (usuário) ─────────────────────────────────────────────────────────
 class AgendaViewModel extends ChangeNotifier {
-  final EventRepository _repo = EventRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _activeFilter = 'Todo';
   List<EventModel> _events = [];
+  bool _isLoading = false;
+  String? _error;
 
   String get activeFilter => _activeFilter;
   List<EventModel> get events => _events;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   static const List<String> filters = ['Todo', 'Treinos', 'Eventos', 'Extras'];
 
-  AgendaViewModel() {
-    _loadEvents();
-  }
+  static const _filterMap = {
+    'Treinos': 'TREINO',
+    'Eventos': 'EVENTO',
+    'Extras':  'EXTRA',
+  };
 
-  void _loadEvents() {
-    _events = _repo.getEvents(filter: _activeFilter);
+  AgendaViewModel();
+
+  Future<void> load() async {
+    // Aguarda o token estar disponível (máx 3s)
+    String? atleticaId;
+    for (int i = 0; i < 6; i++) {
+      atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId != null) break;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    if (atleticaId == null) return;
+
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+    try {
+      final type = _filterMap[_activeFilter];
+      _events = await _ds.getEvents(atleticaId, type: type);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setFilter(String filter) {
     _activeFilter = filter;
-    _loadEvents();
+    load();
   }
 
-  void confirmPresence(String eventId) {
+  Future<void> confirmPresence(String eventId) async {
+    try {
+      await _ds.confirmarPresenca(eventId);
+    } catch (_) {}
     notifyListeners();
   }
 }
 
+// ─── Agenda Admin ─────────────────────────────────────────────────────────────
 class AdminAgendaViewModel extends ChangeNotifier {
-  final EventRepository _repo = EventRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
-  List<EventModel> get events => _repo.getEvents();
-  int get totalCount => events.length;
-  int get treinoCount => events.where((e) => e.type == 'TREINO').length;
+  List<EventModel> _events = [];
+  bool _isLoading = false;
 
-  void removeEvent(String id) {
-    _repo.removeEvent(id);
+  List<EventModel> get events => _events;
+  bool get isLoading => _isLoading;
+  int get totalCount => _events.length;
+  int get treinoCount => _events.where((e) => e.type == 'TREINO').length;
+
+  AdminAgendaViewModel() {
+    load();
+  }
+
+  Future<void> load() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _events = await _ds.getEvents(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeEvent(String id) async {
+    await _ds.deleteEvento(id);
+    _events.removeWhere((e) => e.id == id);
     notifyListeners();
   }
 
-  void refresh() => notifyListeners();
+  Future<void> refresh() => load();
 }
 
+// ─── Cadastrar / Editar Evento ────────────────────────────────────────────────
 class RegisterEventViewModel extends ChangeNotifier {
-  final EventRepository _repo = EventRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
   final EventModel? initialEvent;
 
   late String _selectedType;
@@ -61,14 +122,14 @@ class RegisterEventViewModel extends ChangeNotifier {
   static const List<String> types = ['TREINO', 'EVENTO SOCIAL', 'EXTRAS'];
 
   static const Map<String, int> _typeColors = {
-    'TREINO': 0xFF10B981,
+    'TREINO':        0xFF10B981,
     'EVENTO SOCIAL': 0xFFF59E0B,
-    'EXTRAS': 0xFF8B5CF6,
+    'EXTRAS':        0xFF8B5CF6,
   };
   static const Map<String, int> _bgColors = {
-    'TREINO': 0xFF1E3A5F,
+    'TREINO':        0xFF1E3A5F,
     'EVENTO SOCIAL': 0xFF3A1E5F,
-    'EXTRAS': 0xFF2E1E5F,
+    'EXTRAS':        0xFF2E1E5F,
   };
 
   RegisterEventViewModel({this.initialEvent}) {
@@ -89,29 +150,32 @@ class RegisterEventViewModel extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      final timeStr = [startTime.trim(), endTime.trim()]
+          .where((t) => t.isNotEmpty)
+          .join(' – ');
 
-    final timeStr = startTime.trim().isNotEmpty && endTime.trim().isNotEmpty
-        ? '${startTime.trim()} – ${endTime.trim()}'
-        : startTime.trim().isNotEmpty
-            ? startTime.trim()
-            : endTime.trim();
+      final body = {
+        'title':      title.trim().toUpperCase(),
+        'date':       date.trim().toUpperCase(),
+        'type':       _selectedType,
+        'time':       timeStr,
+        'place':      place.trim(),
+        'atleticaId': atleticaId,
+      };
 
-    final event = EventModel(
-      id: isEditMode ? initialEvent!.id : _repo.nextId,
-      date: date.trim().toUpperCase(),
-      type: _selectedType,
-      typeColor: _typeColors[_selectedType] ?? 0xFF10B981,
-      title: title.trim().toUpperCase(),
-      time: timeStr,
-      place: place.trim(),
-      bgColor: _bgColors[_selectedType] ?? 0xFF1E3A5F,
-    );
-
-    isEditMode ? _repo.updateEvent(event) : _repo.addEvent(event);
-
-    _isLoading = false;
-    notifyListeners();
-    return true;
+      if (isEditMode) {
+        await _ds.updateEvento(initialEvent!.id, body);
+      } else {
+        await _ds.createEvento(body);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }
