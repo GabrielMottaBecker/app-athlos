@@ -86,39 +86,60 @@ class _PresidentOnboardingContentState extends State<_PresidentOnboardingContent
           ]),
         )),
 
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: ext.surfaceColor, border: Border(top: BorderSide(color: ext.borderColor))),
-          child: Row(children: [
-            if (vm.canGoBack) ...[
-              Expanded(child: OutlinedButton(
-                onPressed: () => context.read<PresidentOnboardingViewModel>().prevStep(),
-                style: OutlinedButton.styleFrom(foregroundColor: ext.primaryColor, side: BorderSide(color: ext.borderColor), padding: const EdgeInsets.symmetric(vertical: 12)),
-                child: const Text('Voltar'))),
-              const SizedBox(width: 10),
-            ],
-            Expanded(flex: 2, child: ElevatedButton(
-              onPressed: () {
-                context.read<PresidentOnboardingViewModel>()
-                  ..setAtleticaName(_atleticaController.text)
-                  ..setPresidentName(_presidentController.text);
-                if (vm.canGoNext) {
-                  context.read<PresidentOnboardingViewModel>().nextStep();
-                } else {
-                  final atletica = context.read<PresidentOnboardingViewModel>().buildAtleticaModel();
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                    builder: (_) => AtleticaCreatedView(
-                      atleticaName: atletica.name,
-                      presidentName: atletica.presidentName,
-                      primaryColor: Color(atletica.primaryColorValue),
-                    )));
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: ext.primaryColor, padding: const EdgeInsets.symmetric(vertical: 12)),
-              child: Text(vm.step == 0 ? 'Próximo' : 'Finalizar Cadastro',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            )),
-          ]),
+        // Erro + botões
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (vm.error != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Text(vm.error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: ext.surfaceColor, border: Border(top: BorderSide(color: ext.borderColor))),
+              child: Row(children: [
+                if (vm.canGoBack) ...[
+                  Expanded(child: OutlinedButton(
+                    onPressed: () => context.read<PresidentOnboardingViewModel>().prevStep(),
+                    style: OutlinedButton.styleFrom(foregroundColor: ext.primaryColor, side: BorderSide(color: ext.borderColor), padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: const Text('Voltar'))),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(flex: 2, child: ElevatedButton(
+                  onPressed: vm.isLoading ? null : () async {
+                    context.read<PresidentOnboardingViewModel>()
+                      ..setAtleticaName(_atleticaController.text)
+                      ..setPresidentName(_presidentController.text);
+
+                    if (vm.canGoNext) {
+                      context.read<PresidentOnboardingViewModel>().nextStep();
+                    } else {
+                      final atletica = await context
+                          .read<PresidentOnboardingViewModel>()
+                          .finish();
+
+                      if (!context.mounted) return;
+                      if (atletica == null) return;
+
+                      Navigator.pushReplacement(context, MaterialPageRoute(
+                        builder: (_) => AtleticaCreatedView(
+                          atleticaName:  atletica.name,
+                          presidentName: atletica.presidentName,
+                          primaryColor:  Color(atletica.primaryColorValue),
+                        )));
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: ext.primaryColor, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  child: vm.isLoading
+                    ? const SizedBox(height: 18, width: 18,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : Text(vm.step == 0 ? 'Próximo' : 'Finalizar Cadastro',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                )),
+              ]),
+            ),
+          ],
         ),
       ]),
     );

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../data/datasources/loja_remote_datasource.dart';
+import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
 
 class CartItem {
   final ProductModel product;
@@ -10,36 +11,54 @@ class CartItem {
   double get subtotal => product.price * quantity;
 }
 
+// ─── Loja (usuário) ───────────────────────────────────────────────────────────
 class LojaViewModel extends ChangeNotifier {
-  final ProductRepository _repo = ProductRepository();
+  final LojaRemoteDatasource _ds = LojaRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _activeCategory = 'All Items';
   List<ProductModel> _products = [];
   final List<CartItem> _cart = [];
+  bool _isLoading = false;
 
   String get activeCategory => _activeCategory;
-  List<ProductModel> get products => _products;
+  bool get isLoading => _isLoading;
+
+  List<ProductModel> get products {
+    if (_activeCategory == 'All Items') return _products;
+    return _products.where((p) => p.tag == _activeCategory).toList();
+  }
+
   List<CartItem> get cart => _cart;
-  double get totalRevenue => _repo.totalRevenue;
-  int get totalSales => _repo.totalSales;
+  double get totalRevenue => 0.0;
+  int get totalSales => 0;
 
   int get cartCount => _cart.fold(0, (sum, i) => sum + i.quantity);
   double get cartTotal => _cart.fold(0.0, (sum, i) => sum + i.subtotal);
 
-  static const List<String> categories = ['All Items', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'];
+  static const List<String> categories = [
+    'All Items', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'
+  ];
 
-  LojaViewModel() {
-    _loadProducts();
-  }
+  LojaViewModel();
 
-  void _loadProducts() {
-    _products = _repo.getProducts(category: _activeCategory);
+  Future<void> load() async {
+    _isLoading = true;
     notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _products = await _ds.getProdutos(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setCategory(String category) {
     _activeCategory = category;
-    _loadProducts();
+    notifyListeners();
   }
 
   int quantityInCart(String productId) {
@@ -87,52 +106,73 @@ class LojaViewModel extends ChangeNotifier {
   }
 }
 
+// ─── Admin Loja ───────────────────────────────────────────────────────────────
 class AdminLojaViewModel extends ChangeNotifier {
-  final ProductRepository _repo = ProductRepository();
+  final LojaRemoteDatasource _ds = LojaRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
+
   String _activeCategory = 'All Products';
   List<ProductModel> _products = [];
+  bool _isLoading = false;
 
   String get activeCategory => _activeCategory;
-  List<ProductModel> get products => _products;
-  double get totalRevenue => _repo.totalRevenue;
-  int get totalSales => _repo.totalSales;
+  bool get isLoading => _isLoading;
+  double get totalRevenue => 0.0;
+  int get totalSales => 0;
 
-  static const List<String> categories = ['All Products', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'];
-
-  AdminLojaViewModel() {
-    _loadProducts();
+  List<ProductModel> get products {
+    if (_activeCategory == 'All Products') return _products;
+    return _products.where((p) => p.tag == _activeCategory).toList();
   }
 
-  void _loadProducts() {
-    _products = _repo.getProducts(category: _activeCategory);
+  static const List<String> categories = [
+    'All Products', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'
+  ];
+
+  AdminLojaViewModel() {
+    load();
+  }
+
+  Future<void> load() async {
+    _isLoading = true;
     notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _products = await _ds.getProdutos(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> inativarProduto(String id) async {
+    await _ds.changeStatus(id, 'INATIVO');
+    final idx = _products.indexWhere((p) => p.id == id);
+    if (idx != -1) {
+      _products[idx] = _products[idx].copyWith(status: 'INATIVO');
+      notifyListeners();
+    }
   }
 
   void setCategory(String cat) {
     _activeCategory = cat;
-    _loadProducts();
+    notifyListeners();
   }
 
-  void addProduct(ProductModel p) {
-    _repo.addProduct(p);
-    _loadProducts();
-  }
+  Future<void> refresh() => load();
 
-  void updateProduct(ProductModel p) {
-    _repo.updateProduct(p);
-    _loadProducts();
-  }
-
-  void removeProduct(String id) {
-    _repo.removeProduct(id);
-    _loadProducts();
-  }
-
-  void refresh() => _loadProducts();
+  // Mantidos para compatibilidade com a view atual
+  void removeProduct(String id) => inativarProduto(id);
+  void addProduct(ProductModel p) {}
+  void updateProduct(ProductModel p) {}
 }
 
+// ─── Cadastrar / Editar Produto ───────────────────────────────────────────────
 class RegisterProductViewModel extends ChangeNotifier {
-  final ProductRepository _repo = ProductRepository();
+  final LojaRemoteDatasource _ds = LojaRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
   final _picker = ImagePicker();
   final ProductModel? initialProduct;
 
@@ -140,7 +180,9 @@ class RegisterProductViewModel extends ChangeNotifier {
   bool _isLoading = false;
   XFile? _image;
 
-  static const List<String> categories = ['T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'];
+  static const List<String> categories = [
+    'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'
+  ];
 
   String get selectedCategory => _selectedCategory;
   bool get isLoading => _isLoading;
@@ -150,9 +192,6 @@ class RegisterProductViewModel extends ChangeNotifier {
   RegisterProductViewModel({this.initialProduct}) {
     if (initialProduct != null) {
       _selectedCategory = initialProduct!.tag;
-      if (initialProduct!.imagePath != null) {
-        _image = XFile(initialProduct!.imagePath!);
-      }
     }
   }
 
@@ -177,29 +216,29 @@ class RegisterProductViewModel extends ChangeNotifier {
   Future<bool> save({required String name, required String price}) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      final parsedPrice = double.tryParse(price.replaceAll(',', '.')) ?? 0.0;
 
-    final parsedPrice = double.tryParse(price.replaceAll(',', '.')) ?? 0.0;
+      final body = {
+        'nome':       name.trim(),
+        'preco':      parsedPrice,
+        'categoria':  _selectedCategory,
+        'atleticaId': atleticaId,
+        'status':     'DISPONIVEL',
+      };
 
-    if (isEditMode) {
-      _repo.updateProduct(initialProduct!.copyWith(
-        name: name.trim(),
-        price: parsedPrice,
-        tag: _selectedCategory,
-        imagePath: _image?.path,
-      ));
-    } else {
-      _repo.addProduct(ProductModel(
-        id: _repo.nextId,
-        name: name.trim(),
-        price: parsedPrice,
-        tag: _selectedCategory,
-        imagePath: _image?.path,
-      ));
+      if (isEditMode) {
+        await _ds.updateProduto(initialProduct!.id, body);
+      } else {
+        await _ds.createProduto(body);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
-    return true;
   }
 }

@@ -219,12 +219,32 @@ class _PostCard extends StatelessWidget {
 }
 
 // ─── Loja View ────────────────────────────────────────────────────────────────
-class LojaView extends StatelessWidget {
+class LojaView extends StatefulWidget {
   const LojaView({super.key});
   @override
+  State<LojaView> createState() => _LojaViewState();
+}
+
+class _LojaViewState extends State<LojaView> {
+  late final LojaViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = LojaViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LojaViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _LojaContent(),
     );
   }
@@ -609,12 +629,33 @@ class _AgendaContent extends StatelessWidget {
 }
 
 // ─── Participantes View ───────────────────────────────────────────────────────
-class ParticipantesView extends StatelessWidget {
+// ─── Participantes View ───────────────────────────────────────────────────────
+class ParticipantesView extends StatefulWidget {
   const ParticipantesView({super.key});
   @override
+  State<ParticipantesView> createState() => _ParticipantesViewState();
+}
+
+class _ParticipantesViewState extends State<ParticipantesView> {
+  late final ParticipantesViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = ParticipantesViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ParticipantesViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _ParticipantesContent(),
     );
   }
