@@ -1,14 +1,19 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class TokenLocalDatasource {
+  // Singleton
+  static final TokenLocalDatasource _instance = TokenLocalDatasource._internal();
+  factory TokenLocalDatasource({FlutterSecureStorage? storage}) => _instance;
+  TokenLocalDatasource._internal() : _storage = const FlutterSecureStorage();
+
   final FlutterSecureStorage _storage;
 
-  static const _accessKey    = 'access_token';
-  static const _refreshKey   = 'refresh_token';
-  static const _roleKey      = 'role';
-  static const _userIdKey    = 'user_id';
-  static const _atleticaKey  = 'atletica_id';
-  static const _expiryKey    = 'token_expiry';
+  static const _accessKey   = 'access_token';
+  static const _refreshKey  = 'refresh_token';
+  static const _roleKey     = 'role';
+  static const _userIdKey   = 'user_id';
+  static const _atleticaKey = 'atletica_id';
+  static const _expiryKey   = 'token_expiry';
 
   static const _sessionDuration = Duration(hours: 24);
 
@@ -18,9 +23,6 @@ class TokenLocalDatasource {
   String? _cachedUserId;
   String? _cachedAtleticaId;
   DateTime? _cachedExpiry;
-
-  TokenLocalDatasource({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
 
   Future<void> saveTokens({
     required String access,

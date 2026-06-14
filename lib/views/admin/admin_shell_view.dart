@@ -249,12 +249,32 @@ class _AdminLojaContentState extends State<_AdminLojaContent> {
 }
 
 // ─── Admin Agenda View ────────────────────────────────────────────────────────
-class AdminAgendaView extends StatelessWidget {
+class AdminAgendaView extends StatefulWidget {
   const AdminAgendaView({super.key});
   @override
+  State<AdminAgendaView> createState() => _AdminAgendaViewState();
+}
+
+class _AdminAgendaViewState extends State<AdminAgendaView> {
+  late final AdminAgendaViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = AdminAgendaViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AdminAgendaViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _AdminAgendaContent(),
     );
   }
@@ -417,12 +437,32 @@ class _Chip extends StatelessWidget {
 }
 
 // ─── Admin Feed View ──────────────────────────────────────────────────────────
-class AdminFeedView extends StatelessWidget {
+class AdminFeedView extends StatefulWidget {
   const AdminFeedView({super.key});
   @override
+  State<AdminFeedView> createState() => _AdminFeedViewState();
+}
+
+class _AdminFeedViewState extends State<AdminFeedView> {
+  late final AdminFeedViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = AdminFeedViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AdminFeedViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _AdminFeedContent(),
     );
   }
@@ -542,12 +582,32 @@ class _AdminFeedContentState extends State<_AdminFeedContent> {
 }
 
 // ─── Admin Membros View ───────────────────────────────────────────────────────
-class AdminMembrosView extends StatelessWidget {
+class AdminMembrosView extends StatefulWidget {
   const AdminMembrosView({super.key});
   @override
+  State<AdminMembrosView> createState() => _AdminMembrosViewState();
+}
+
+class _AdminMembrosViewState extends State<AdminMembrosView> {
+  late final AdminMembersViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = AdminMembersViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AdminMembersViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _AdminMembrosContent(),
     );
   }
@@ -582,7 +642,8 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
         backgroundColor: ext.surfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Remover membro', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-        content: Text('Tem certeza que deseja remover $name?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        content: Text('O membro $name será inativado. Deseja continuar?',
+        style: TextStyle(fontSize: 13, color: ext.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -596,7 +657,7 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
       ),
     );
     if (confirmed == true && ctx.mounted) {
-      ctx.read<AdminMembersViewModel>().removeMember(id);
+      ctx.read<AdminMembersViewModel>().inativarMember(id);
     }
   }
 

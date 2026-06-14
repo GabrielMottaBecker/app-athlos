@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import '../data/datasources/members_remote_datasource.dart';
+import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
 
+// ─── Participantes (usuário) ──────────────────────────────────────────────────
 class ParticipantesViewModel extends ChangeNotifier {
-  final MemberRepository _repo = MemberRepository();
+  final MembersRemoteDatasource _ds = MembersRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _searchQuery = '';
   List<MemberModel> _members = [];
+  bool _isLoading = false;
 
   String get searchQuery => _searchQuery;
+  bool get isLoading => _isLoading;
+
   List<MemberModel> get members {
     if (_searchQuery.isEmpty) return _members;
     return _members
@@ -16,8 +22,20 @@ class ParticipantesViewModel extends ChangeNotifier {
         .toList();
   }
 
-  ParticipantesViewModel() {
-    _members = _repo.getUserMembers();
+  ParticipantesViewModel();
+
+  Future<void> load() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _members = await _ds.getAssociados(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setSearchQuery(String query) {
@@ -26,19 +44,28 @@ class ParticipantesViewModel extends ChangeNotifier {
   }
 }
 
+// ─── Admin Members ────────────────────────────────────────────────────────────
 class AdminMembersViewModel extends ChangeNotifier {
-  final MemberRepository _repo = MemberRepository();
+  final MembersRemoteDatasource _ds = MembersRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _searchQuery = '';
   String _statusFilter = 'Todos';
+  List<MemberModel> _members = [];
+  bool _isLoading = false;
 
   String get searchQuery => _searchQuery;
   String get statusFilter => _statusFilter;
+  bool get isLoading => _isLoading;
+
+  static const List<String> statusFilters = ['Todos', 'Ativos', 'Inativos'];
 
   List<MemberModel> get members {
-    var list = _repo.getAdminMembers();
+    var list = _members;
     if (_searchQuery.isNotEmpty) {
-      list = list.where((m) => m.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      list = list
+          .where((m) => m.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
     if (_statusFilter == 'Ativos') {
       list = list.where((m) => m.status == 'ATIVO').toList();
@@ -48,7 +75,23 @@ class AdminMembersViewModel extends ChangeNotifier {
     return list;
   }
 
-  static const List<String> statusFilters = ['Todos', 'Ativos', 'Inativos'];
+  AdminMembersViewModel() {
+    load();
+  }
+
+  Future<void> load() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _members = await _ds.getAssociados(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   void setSearchQuery(String query) {
     _searchQuery = query;
@@ -60,46 +103,58 @@ class AdminMembersViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeMember(String id) {
-    _repo.removeMember(id);
-    notifyListeners();
+  Future<void> inativarMember(String id) async {
+    await _ds.changeStatus(id, 'INATIVO');
+    final idx = _members.indexWhere((m) => m.id == id);
+    if (idx != -1) {
+      _members[idx] = _members[idx].copyWith(status: 'INATIVO');
+      notifyListeners();
+    }
   }
 
-  void updateMember(MemberModel updated) {
-    _repo.updateMember(updated);
-    notifyListeners();
-  }
-
-  void refresh() => notifyListeners();
+  Future<void> refresh() => load();
 }
 
+// ─── Cadastrar / Editar Membro ────────────────────────────────────────────────
 class RegisterMemberViewModel extends ChangeNotifier {
-  final MemberRepository _repo = MemberRepository();
+  final MembersRemoteDatasource _ds = MembersRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
   final MemberModel? initialMember;
 
   late String _selectedRole;
   late String _selectedStatus;
   bool _isLoading = false;
+  List<Map<String, dynamic>> _cargos = [];
 
   String get selectedRole => _selectedRole;
   String get selectedStatus => _selectedStatus;
   bool get isLoading => _isLoading;
   bool get isEditMode => initialMember != null;
+  List<Map<String, dynamic>> get cargos => _cargos;
 
   static const List<String> roles = [
-    'Membro', 'Diretor', 'Coordenador', 'Financeiro', 'Marketing', 'Vice-Presidente',
-  ];
+  'Membro', 'Diretor', 'Coordenador', 'Financeiro',
+  'Marketing', 'Vice-Presidente', 'Presidente',
+];
+
   static const List<String> statuses = ['ATIVO', 'INATIVO'];
 
   RegisterMemberViewModel({this.initialMember}) {
-    final role = initialMember?.role ?? 'Membro';
-    _selectedRole = roles.contains(role)
-        ? role
-        : roles.firstWhere(
-            (r) => r.toUpperCase() == role.toUpperCase(),
-            orElse: () => 'Membro',
-          );
+    _selectedRole   = initialMember?.role ?? '';
     _selectedStatus = initialMember?.status ?? 'ATIVO';
+    _loadCargos();
+  }
+
+  Future<void> _loadCargos() async {
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId == null) return;
+      _cargos = await _ds.getCargos(atleticaId);
+      if (_selectedRole.isEmpty && _cargos.isNotEmpty) {
+        _selectedRole = _cargos.first['nome'] as String;
+      }
+      notifyListeners();
+    } catch (_) {}
   }
 
   void setRole(String role) {
@@ -121,34 +176,35 @@ class RegisterMemberViewModel extends ChangeNotifier {
   }) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300));
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
 
-    if (isEditMode) {
-      _repo.updateMember(initialMember!.copyWith(
-        name: name.trim().isEmpty ? null : name.trim(),
-        role: _selectedRole.toUpperCase(),
-        status: _selectedStatus,
-        email: email.trim(),
-        ra: ra.trim(),
-        curso: curso.trim(),
-        senha: senha.trim(),
-      ));
-    } else {
-      _repo.addMember(MemberModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        rank: _repo.nextRank,
-        name: name.trim(),
-        role: _selectedRole.toUpperCase(),
-        status: _selectedStatus,
-        email: email.trim(),
-        ra: ra.trim(),
-        curso: curso.trim(),
-        senha: senha.trim(),
-      ));
+      final cargo = _cargos.firstWhere(
+        (c) => c['nome'] == _selectedRole,
+        orElse: () => {},
+      );
+      final cargoId = cargo['id'] as String?;
+
+      final body = {
+        'nome':            name.trim(),
+        'email':           email.trim(),
+        'documento':       ra.trim(),
+        'atleticaId':      atleticaId,
+        'valorAssociacao': 0,
+        if (cargoId != null) 'cargoId': cargoId,
+      };
+
+      if (isEditMode) {
+        await _ds.updateAssociado(initialMember!.id, body);
+      } else {
+        await _ds.createAssociado(body);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
-    return true;
   }
 }

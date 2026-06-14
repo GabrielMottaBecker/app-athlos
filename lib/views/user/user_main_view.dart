@@ -83,12 +83,33 @@ class _UserAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 // ─── Feed View ────────────────────────────────────────────────────────────────
-class FeedView extends StatelessWidget {
+class FeedView extends StatefulWidget {
   const FeedView({super.key});
   @override
+  State<FeedView> createState() => _FeedViewState();
+}
+
+class _FeedViewState extends State<FeedView> {
+  late final FeedViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = FeedViewModel();
+    // Carrega após o primeiro frame, garantindo que o token já existe
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => FeedViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _FeedContent(),
     );
   }
@@ -140,9 +161,9 @@ class _FeedContent extends StatelessWidget {
         // Lista de posts
         Expanded(child: ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: vm.posts.length,
+          itemCount: vm.filteredPosts.length,
           separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (_, i) => _PostCard(post: vm.posts[i]),
+          itemBuilder: (_, i) => _PostCard(post: vm.filteredPosts[i]),
         )),
       ]),
     );
@@ -198,12 +219,32 @@ class _PostCard extends StatelessWidget {
 }
 
 // ─── Loja View ────────────────────────────────────────────────────────────────
-class LojaView extends StatelessWidget {
+class LojaView extends StatefulWidget {
   const LojaView({super.key});
   @override
+  State<LojaView> createState() => _LojaViewState();
+}
+
+class _LojaViewState extends State<LojaView> {
+  late final LojaViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = LojaViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LojaViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _LojaContent(),
     );
   }
@@ -487,12 +528,32 @@ class _CartBottomSheet extends StatelessWidget {
 }
 
 // ─── Agenda View ──────────────────────────────────────────────────────────────
-class AgendaView extends StatelessWidget {
+class AgendaView extends StatefulWidget {
   const AgendaView({super.key});
   @override
+  State<AgendaView> createState() => _AgendaViewState();
+}
+
+class _AgendaViewState extends State<AgendaView> {
+  late final AgendaViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = AgendaViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AgendaViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _AgendaContent(),
     );
   }
@@ -568,12 +629,33 @@ class _AgendaContent extends StatelessWidget {
 }
 
 // ─── Participantes View ───────────────────────────────────────────────────────
-class ParticipantesView extends StatelessWidget {
+// ─── Participantes View ───────────────────────────────────────────────────────
+class ParticipantesView extends StatefulWidget {
   const ParticipantesView({super.key});
   @override
+  State<ParticipantesView> createState() => _ParticipantesViewState();
+}
+
+class _ParticipantesViewState extends State<ParticipantesView> {
+  late final ParticipantesViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = ParticipantesViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ParticipantesViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _vm,
       child: const _ParticipantesContent(),
     );
   }

@@ -1,40 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../data/datasources/feed_remote_datasource.dart';
+import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
-import '../data/repositories/repositories.dart';
 
+// ─── Feed (usuário) ───────────────────────────────────────────────────────────
 class FeedViewModel extends ChangeNotifier {
-  final FeedRepository _repo = FeedRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _activeFilter = 'RECENTES';
   List<PostModel> _posts = [];
+  bool _isLoading = false;
+  String? _error;
 
   String get activeFilter => _activeFilter;
   List<PostModel> get posts => _posts;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   static const List<String> filters = ['RECENTES', 'PRESIDÊNCIA', 'ESPORTES'];
 
   FeedViewModel() {
-    _loadPosts();
+    //load();
   }
 
-  void _loadPosts() {
-    _posts = _repo.getPosts(filter: _activeFilter);
+  Future<void> load() async {
+    String? atleticaId;
+    for (int i = 0; i < 6; i++) {
+      atleticaId = await _tokenDs.getAtleticaId();
+      if (atleticaId != null) break;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    if (atleticaId == null) return; // sem token, não carrega
+
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+    try {
+      _posts = await _ds.getPosts(atleticaId);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setFilter(String filter) {
     _activeFilter = filter;
-    _loadPosts();
+    notifyListeners();
+  }
+
+  List<PostModel> get filteredPosts {
+    if (_activeFilter == 'RECENTES') return _posts;
+    final map = {'PRESIDÊNCIA': 'PRESIDÊNCIA', 'ESPORTES': 'TREINO'};
+    final cat = map[_activeFilter] ?? _activeFilter;
+    return _posts.where((p) => p.category == cat).toList();
   }
 }
 
+// ─── Feed Admin ───────────────────────────────────────────────────────────────
 class AdminFeedViewModel extends ChangeNotifier {
-  final FeedRepository _repo = FeedRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
+
   String _searchQuery = '';
   List<PostModel> _posts = [];
+  bool _isLoading = false;
 
   String get searchQuery => _searchQuery;
+  bool get isLoading => _isLoading;
+
   List<PostModel> get posts {
     if (_searchQuery.isEmpty) return _posts;
     return _posts
@@ -43,7 +81,22 @@ class AdminFeedViewModel extends ChangeNotifier {
   }
 
   AdminFeedViewModel() {
-    _posts = _repo.getPosts();
+    load();
+  }
+
+  Future<void> load() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      print('>>> atleticaId do storage: $atleticaId');
+      if (atleticaId == null) throw Exception('Atlética não identificada');
+      _posts = await _ds.getPosts(atleticaId);
+    } catch (_) {
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setSearchQuery(String query) {
@@ -51,32 +104,19 @@ class AdminFeedViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addPost(PostModel p) {
-    _repo.addPost(p);
-    _posts = _repo.getPosts();
+  Future<void> removePost(String id) async {
+    await _ds.deleteEvento(id);
+    _posts.removeWhere((p) => p.id == id);
     notifyListeners();
   }
 
-  void updatePost(PostModel p) {
-    _repo.updatePost(p);
-    _posts = _repo.getPosts();
-    notifyListeners();
-  }
-
-  void removePost(String id) {
-    _repo.removePost(id);
-    _posts = _repo.getPosts();
-    notifyListeners();
-  }
-
-  void refresh() {
-    _posts = _repo.getPosts();
-    notifyListeners();
-  }
+  Future<void> refresh() => load();
 }
 
+// ─── Cadastrar / Editar Post ──────────────────────────────────────────────────
 class RegisterPostViewModel extends ChangeNotifier {
-  final FeedRepository _repo = FeedRepository();
+  final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
   final _picker = ImagePicker();
   final PostModel? initialPost;
 
@@ -87,9 +127,9 @@ class RegisterPostViewModel extends ChangeNotifier {
   static const List<String> categories = ['PRESIDÊNCIA', 'TREINO', 'COMPETIÇÃO', 'AVISO'];
   static const Map<String, int> categoryColors = {
     'PRESIDÊNCIA': 0xFF2563EB,
-    'TREINO': 0xFF10B981,
-    'COMPETIÇÃO': 0xFFF59E0B,
-    'AVISO': 0xFFEF4444,
+    'TREINO':      0xFF10B981,
+    'COMPETIÇÃO':  0xFFF59E0B,
+    'AVISO':       0xFFEF4444,
   };
 
   String get selectedCategory => _selectedCategory;
@@ -100,9 +140,6 @@ class RegisterPostViewModel extends ChangeNotifier {
   RegisterPostViewModel({this.initialPost}) {
     if (initialPost != null) {
       _selectedCategory = initialPost!.category;
-      if (initialPost!.imagePath != null) {
-        _image = XFile(initialPost!.imagePath!);
-      }
     }
   }
 
@@ -127,32 +164,24 @@ class RegisterPostViewModel extends ChangeNotifier {
   Future<bool> save({required String title}) async {
     _isLoading = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    if (isEditMode) {
-      _repo.updatePost(initialPost!.copyWith(
-        title: title.trim(),
-        category: _selectedCategory,
-        categoryColor: categoryColors[_selectedCategory],
-        hasImage: _image != null,
-        imagePath: _image?.path,
-      ));
-    } else {
-      _repo.addPost(PostModel(
-        id: _repo.nextId,
-        category: _selectedCategory,
-        categoryColor: categoryColors[_selectedCategory]!,
-        title: title.trim(),
-        timeAgo: 'agora',
-        likes: 0,
-        comments: 0,
-        hasImage: _image != null,
-        imagePath: _image?.path,
-      ));
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+      final body = {
+        'title': title.trim(),
+        'type': _selectedCategory,
+        'atleticaId': atleticaId,
+      };
+      if (isEditMode) {
+        await _ds.updateEvento(initialPost!.id, body);
+      } else {
+        await _ds.createEvento(body);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
-    return true;
   }
 }
