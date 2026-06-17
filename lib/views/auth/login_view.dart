@@ -1,3 +1,4 @@
+import 'package:athlos/core/theme/atletica_theme_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/theme_notifier.dart';
@@ -60,8 +61,10 @@ class _LoginContentState extends State<_LoginContent> {
     final ext = context.athlos;
 
     if (vm.state == AuthState.success && vm.role != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleNavigation(context, vm.role!);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!context.mounted) return;
+        await loadAtleticaTheme(context.read<ThemeNotifier>());
+        if (context.mounted) _handleNavigation(context, vm.role!);
       });
     }
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../data/datasources/token_local_datasource.dart';
+import '../../core/theme/theme_notifier.dart';
+import '../../core/theme/atletica_theme_loader.dart';
 import 'login_view.dart';
 import '../user/user_main_view.dart';
 import '../president/president_onboarding_view.dart';
@@ -34,6 +37,9 @@ class _SplashViewState extends State<SplashView> {
         MaterialPageRoute(builder: (_) => const LoginView()));
       return;
     }
+
+    await loadAtleticaTheme(context.read<ThemeNotifier>());
+    if (!mounted) return;
 
     // Com token → navega conforme o role salvo
     switch (role) {

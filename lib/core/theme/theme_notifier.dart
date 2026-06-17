@@ -34,8 +34,11 @@ class AthlosColorPalettes {
 
 // ─── Theme Notifier ───────────────────────────────────────────────────────────
 class ThemeNotifier extends ChangeNotifier {
-  Color _primaryColor = const Color(0xFF2563EB);
-  Color _backgroundColor = const Color(0xFFF8FAFC);
+  static const Color defaultPrimaryColor = Color(0xFF2563EB);
+  static const Color defaultBackgroundColor = Color(0xFFF8FAFC);
+
+  Color _primaryColor = defaultPrimaryColor;
+  Color _backgroundColor = defaultBackgroundColor;
   bool _isDark = false;
 
   Color get primaryColor => _primaryColor;
@@ -51,6 +54,35 @@ class ThemeNotifier extends ChangeNotifier {
     _backgroundColor = color;
     _isDark = color.computeLuminance() < 0.2;
     notifyListeners();
+  }
+
+  /// Restaura as cores padrão (usuário sem atlética vinculada, ex.: Super
+  /// Admin, ou falha ao buscar as cores da atlética no backend).
+  void resetToDefault() {
+    _primaryColor = defaultPrimaryColor;
+    _backgroundColor = defaultBackgroundColor;
+    _isDark = false;
+    notifyListeners();
+  }
+
+  /// Aplica cores vindas do backend no formato "#RRGGBB".
+  /// Valores nulos ou inválidos são ignorados silenciosamente.
+  void applyHexColors({String? primaryHex, String? backgroundHex}) {
+    final primary = _tryParseHex(primaryHex);
+    if (primary != null) setPrimaryColor(primary);
+
+    final background = _tryParseHex(backgroundHex);
+    if (background != null) setBackgroundColor(background);
+  }
+
+  static Color? _tryParseHex(String? hex) {
+    if (hex == null) return null;
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return null;
+    }
   }
 
   ThemeData buildTheme() {
