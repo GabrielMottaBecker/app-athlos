@@ -6,6 +6,7 @@ import '../user/user_main_view.dart';
 import '../president/president_onboarding_view.dart';
 import '../admin/admin_shell_view.dart';
 import '../shared/widgets/widgets.dart';
+import '../superadmin/super_admin_shell_view.dart';
 
 class LoginView extends StatelessWidget {
   const LoginView({super.key});
@@ -39,11 +40,11 @@ class _LoginContentState extends State<_LoginContent> {
 
   void _handleNavigation(BuildContext context, String role) {
     switch (role) {
-      case 'president':
+      case 'SUPER_ADMIN':
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const PresidentOnboardingView()));
+          MaterialPageRoute(builder: (_) => const SuperAdminShellView()));
         break;
-      case 'admin':
+      case 'ADMINISTRADOR':
         Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => const AdminShellView()));
         break;
@@ -180,45 +181,6 @@ class _LoginContentState extends State<_LoginContent> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // ── Divider ───────────────────────────────────────────
-              Divider(color: ext.borderColor),
-              const SizedBox(height: 20),
-
-              // ── Card criar atlética ───────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: ext.primaryColor.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: ext.primaryColor.withOpacity(0.2)),
-                ),
-                child: Column(children: [
-                  Text('Ainda não tem uma atlética?', style: TextStyle(
-                    fontSize: 13, color: ext.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  )),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(
-                          builder: (_) => const PresidentOnboardingView())),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ext.primaryColor,
-                        side: BorderSide(color: ext.primaryColor),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('CRIAR SUA PRÓPRIA ATLÉTICA',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ]),
-              ),
 
             ],
           ),

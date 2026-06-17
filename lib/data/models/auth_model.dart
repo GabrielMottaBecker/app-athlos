@@ -24,10 +24,12 @@ class AuthModel extends AuthEntity {
     final normalized = base64Url.normalize(payload);
     final decoded = jsonDecode(utf8.decode(base64Url.decode(normalized)));
 
-    // role vem das permissions — se tem users:write é ADMINISTRADOR
+        // role vem das permissions — verifica super_admin primeiro
     final permissions = List<String>.from(decoded['permissions'] ?? []);
     final String role;
-    if (permissions.contains('users:write')) {
+    if (permissions.contains('super_admin')) {
+      role = 'SUPER_ADMIN';
+    } else if (permissions.contains('users:write')) {
       role = 'ADMINISTRADOR';
     } else {
       role = 'MEMBRO';

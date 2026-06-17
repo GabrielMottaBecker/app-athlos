@@ -11,6 +11,7 @@ import 'register_product_view.dart';
 import 'register_post_view.dart';
 import '../auth/login_view.dart';
 import '../../data/datasources/token_local_datasource.dart';
+import 'atletica_settings_view.dart';
 
 class AdminShellView extends StatefulWidget {
   const AdminShellView({super.key});
@@ -104,6 +105,12 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
         Text(subtitle, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
       ]),
       actions: actions ?? [
+        IconButton(
+          icon: Icon(Icons.settings_outlined, color: ext.textSecondary, size: 20),
+          tooltip: 'Configurações da Atlética',
+          onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const AtleticaSettingsView())),
+        ),
         IconButton(
           icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
           tooltip: 'Sair',
@@ -221,7 +228,8 @@ class _AdminLojaContentState extends State<_AdminLojaContent> {
               child: p.imagePath != null
                 ? ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: Image.file(File(p.imagePath!), width: double.infinity, height: 140, fit: BoxFit.cover),
+                    child: Image.network(p.imagePath!, width: double.infinity, height: 140, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25)))),
                   )
                 : Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25))),
             ),

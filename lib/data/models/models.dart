@@ -241,12 +241,14 @@ class MemberModel {
 
 // ─── Atletica Model ───────────────────────────────────────────────────────────
 class AtleticaModel {
+  final String id;
   final String name;
   final String presidentName;
   final int primaryColorValue;
   final int backgroundColorValue;
 
   const AtleticaModel({
+    required this.id,
     required this.name,
     required this.presidentName,
     required this.primaryColorValue,
