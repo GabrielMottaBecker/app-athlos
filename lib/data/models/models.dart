@@ -85,6 +85,8 @@ class ProductModel {
   final String tag;
   final String? imagePath;
   final String status;
+  final String description;   
+  final int estoque;          
 
   const ProductModel({
     required this.id,
@@ -93,16 +95,20 @@ class ProductModel {
     required this.tag,
     this.imagePath,
     this.status = 'DISPONIVEL',
+    this.description = '',
+    this.estoque = 0,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
-      id:        json['id'] as String,
-      name:      json['nome'] as String? ?? '',
-      price:     (json['preco'] as num?)?.toDouble() ?? 0.0,
-      tag:       json['categoria'] as String? ?? 'Geral',
-      imagePath: json['imagemUrl'] as String?,
-      status:    json['status'] as String? ?? 'DISPONIVEL',
+      id:          json['id'] as String,
+      name:        json['nome'] as String? ?? '',
+      price:       (json['preco'] as num?)?.toDouble() ?? 0.0,
+      tag:         json['categoria'] as String? ?? 'Geral',
+      imagePath:   json['imagemUrl'] as String?,
+      status:      json['status'] as String? ?? 'DISPONIVEL',
+      description: json['descricao'] as String? ?? '',
+      estoque:     (json['estoque'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -112,13 +118,17 @@ class ProductModel {
     String? tag,
     Object? imagePath = _sentinel,
     String? status,
+    String? description,
+    int? estoque,
   }) => ProductModel(
-    id:        id,
-    name:      name ?? this.name,
-    price:     price ?? this.price,
-    tag:       tag ?? this.tag,
-    imagePath: imagePath == _sentinel ? this.imagePath : imagePath as String?,
-    status:    status ?? this.status,
+    id:          id,
+    name:        name ?? this.name,
+    price:       price ?? this.price,
+    tag:         tag ?? this.tag,
+    imagePath:   imagePath == _sentinel ? this.imagePath : imagePath as String?,
+    status:      status ?? this.status,
+    description: description ?? this.description,
+    estoque:     estoque ?? this.estoque,
   );
 }
 
