@@ -31,6 +31,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
   final _raController = TextEditingController();
   final _cursoController = TextEditingController();
   final _senhaController = TextEditingController();
+  final _telefoneController = TextEditingController();
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
       _emailController.text = m.email;
       _raController.text = m.ra;
       _cursoController.text = m.curso;
+      _telefoneController.text = m.telefone;
     }
   }
 
@@ -51,6 +53,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
     _raController.dispose();
     _cursoController.dispose();
     _senhaController.dispose();
+    _telefoneController.dispose();
     super.dispose();
   }
 
@@ -92,6 +95,13 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
               AthlosTextField(hint: 'Ex: Lucas Silva de Oliveira', label: 'NOME COMPLETO', controller: _nameController),
               const SizedBox(height: 12),
               AthlosTextField(hint: 'lucas@email.com', label: 'EMAIL', controller: _emailController, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              AthlosTextField(
+                hint: '(44) 99999-9999',
+                label: 'TELEFONE',
+                controller: _telefoneController,
+                keyboardType: TextInputType.phone,
+              ),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: AthlosTextField(hint: '000000', label: 'RA', controller: _raController, keyboardType: TextInputType.number)),
@@ -226,6 +236,7 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
                   ra: _raController.text,
                   curso: _cursoController.text,
                   senha: _senhaController.text,
+                  telefone: _telefoneController.text,
                 );
                 if (ok && context.mounted) Navigator.pop(context);
               },

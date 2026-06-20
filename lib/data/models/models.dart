@@ -186,6 +186,7 @@ class MemberModel {
   final String ra;
   final String curso;
   final String senha;
+  final String telefone;
 
   const MemberModel({
     required this.id,
@@ -197,6 +198,7 @@ class MemberModel {
     required this.ra,
     required this.curso,
     required this.senha,
+    this.telefone = '',
   });
 
   // Getters derivados do role — sem campos extras
@@ -206,15 +208,18 @@ class MemberModel {
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
     return MemberModel(
-      id:     json['id'] as String,
-      rank:   0,
-      name:   json['nome'] as String? ?? '',
-      role:   json['cargo']?['nome'] as String? ?? 'MEMBRO',
-      status: json['status'] as String? ?? 'ATIVO',
-      email:  json['email'] as String? ?? '',
-      ra:     json['documento'] as String? ?? '',
-      curso:  json['curso'] as String? ?? '',
-      senha:  '',
+      id:       json['id'] as String,
+      rank:     0,
+      name:     json['nome'] as String? ?? '',
+      role:     json['cargo']?['nome'] as String? ?? 'MEMBRO',
+      status:   json['status'] as String? ?? 'ATIVO',
+      email:    json['email'] as String? ?? '',
+      ra:       json['documento'] as String? ?? '',
+      // 'curso' não existe no backend (tabela associados não tem essa coluna);
+      // permanece vazio até que o conceito seja persistido no schema/DTO.
+      curso:    json['curso'] as String? ?? '',
+      senha:    '',
+      telefone: json['telefone'] as String? ?? '',
     );
   }
 
@@ -226,16 +231,18 @@ class MemberModel {
     String? ra,
     String? curso,
     String? senha,
+    String? telefone,
   }) => MemberModel(
-    id:     id,
-    rank:   rank,
-    name:   name ?? this.name,
-    role:   role ?? this.role,
-    status: status ?? this.status,
-    email:  email ?? this.email,
-    ra:     ra ?? this.ra,
-    curso:  curso ?? this.curso,
-    senha:  senha ?? this.senha,
+    id:       id,
+    rank:     rank,
+    name:     name ?? this.name,
+    role:     role ?? this.role,
+    status:   status ?? this.status,
+    email:    email ?? this.email,
+    ra:       ra ?? this.ra,
+    curso:    curso ?? this.curso,
+    senha:    senha ?? this.senha,
+    telefone: telefone ?? this.telefone,
   );
 }
 

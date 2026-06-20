@@ -173,30 +173,39 @@ class RegisterMemberViewModel extends ChangeNotifier {
     required String ra,
     required String curso,
     required String senha,
+    required String telefone,
   }) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final atleticaId = await _tokenDs.getAtleticaId();
-
       final cargo = _cargos.firstWhere(
         (c) => c['nome'] == _selectedRole,
         orElse: () => {},
       );
       final cargoId = cargo['id'] as String?;
 
-      final body = {
-        'nome':            name.trim(),
-        'email':           email.trim(),
-        'documento':       ra.trim(),
-        'atleticaId':      atleticaId,
-        'valorAssociacao': 0,
-        if (cargoId != null) 'cargoId': cargoId,
-      };
-
       if (isEditMode) {
+        // UpdateAssociadoDto só aceita nome, email, documento, telefone
+        final body = {
+          'nome':      name.trim(),
+          'email':     email.trim(),
+          'documento': ra.trim(),
+          'telefone':  telefone.trim(),
+        };
         await _ds.updateAssociado(initialMember!.id, body);
+        // Cargo é atualizado em endpoint separado (PATCH /associados/:id/cargo)
+        await _ds.assignCargo(initialMember!.id, cargoId);
       } else {
+        final atleticaId = await _tokenDs.getAtleticaId();
+        final body = {
+          'nome':            name.trim(),
+          'email':           email.trim(),
+          'documento':       ra.trim(),
+          'telefone':        telefone.trim(),
+          'atleticaId':      atleticaId,
+          'valorAssociacao': 0,
+          if (cargoId != null) 'cargoId': cargoId,
+        };
         await _ds.createAssociado(body);
       }
       return true;

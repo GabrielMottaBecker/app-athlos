@@ -15,7 +15,11 @@ class LojaRemoteDatasource {
 
   Future<String?> createProduto(Map<String, dynamic> body) async {
     final response = await DioClient.lojinha.post('/produtos', data: body);
-    return response.data['id'] as String?;
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return data['id'] as String?;
+    }
+    return null;
   }
 
   Future<void> updateProduto(String id, Map<String, dynamic> body) async {

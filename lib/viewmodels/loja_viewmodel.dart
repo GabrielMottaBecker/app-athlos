@@ -213,29 +213,44 @@ class RegisterProductViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> save({required String name, required String price}) async {
+  Future<bool> save({
+    required String name,
+    required String price,
+    required String description,
+    required String estoque,
+  }) async {
     _isLoading = true;
     notifyListeners();
     try {
-      final atleticaId = await _tokenDs.getAtleticaId();
       final parsedPrice = double.tryParse(price.replaceAll(',', '.')) ?? 0.0;
-
-      final body = {
-        'nome':       name.trim(),
-        'preco':      parsedPrice,
-        'categoria':  _selectedCategory,
-        'atleticaId': atleticaId,
-        'status':     'DISPONIVEL',
-      };
+      final parsedEstoque = int.tryParse(estoque) ?? 0;
 
       if (isEditMode) {
+        // UpdateProdutoDto só aceita nome, descricao, preco, estoque, imagemUrl
+        final body = {
+          'nome':      name.trim(),
+          'descricao': description.trim(),
+          'preco':     parsedPrice,
+          'estoque':   parsedEstoque,
+        };
         await _ds.updateProduto(initialProduct!.id, body);
       } else {
-      print('>>> BODY produto: $body');
+        final atleticaId = await _tokenDs.getAtleticaId();
+        final body = {
+          'nome':       name.trim(),
+          'descricao':  description.trim(),
+          'preco':      parsedPrice,
+          'estoque':    parsedEstoque,
+          'atleticaId': atleticaId,
+          // 'categoria' e 'status' não existem no schema do backend hoje;
+          // se forem necessários, é preciso adicionar a coluna/migration lá antes.
+        };
         await _ds.createProduto(body);
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      // ignore: avoid_print
+      print('>>> ERRO save produto: $e');
       return false;
     } finally {
       _isLoading = false;
