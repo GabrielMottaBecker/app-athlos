@@ -2,7 +2,7 @@ class AuthEntity {
   final String accessToken;
   final String refreshToken;
   final String role;
-  final String userId; // 'user' | 'president' | 'admin'
+  final String userId;
 
   const AuthEntity({
     required this.accessToken,

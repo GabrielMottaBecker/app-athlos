@@ -200,9 +200,10 @@ class RegisterMemberViewModel extends ChangeNotifier {
         await _ds.createAssociado(body);
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      print('>>> ERRO save membro: $e');
       return false;
-    } finally {
+    }finally {
       _isLoading = false;
       notifyListeners();
     }

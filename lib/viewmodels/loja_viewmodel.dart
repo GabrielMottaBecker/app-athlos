@@ -231,6 +231,7 @@ class RegisterProductViewModel extends ChangeNotifier {
       if (isEditMode) {
         await _ds.updateProduto(initialProduct!.id, body);
       } else {
+      print('>>> BODY produto: $body');
         await _ds.createProduto(body);
       }
       return true;
