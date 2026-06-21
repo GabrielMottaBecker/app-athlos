@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/datasources/feed_remote_datasource.dart';
+import '../data/datasources/members_remote_datasource.dart';
 import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
 
@@ -12,11 +13,13 @@ class AgendaViewModel extends ChangeNotifier {
   List<EventModel> _events = [];
   bool _isLoading = false;
   String? _error;
+  final Set<String> _pendingPresenceIds = {};
 
   String get activeFilter => _activeFilter;
   List<EventModel> get events => _events;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool isPresenceLoading(String eventId) => _pendingPresenceIds.contains(eventId);
 
   static const List<String> filters = ['Todo', 'Treinos', 'Eventos', 'Extras'];
 
@@ -58,11 +61,42 @@ class AgendaViewModel extends ChangeNotifier {
     load();
   }
 
-  Future<void> confirmPresence(String eventId) async {
-    try {
-      await _ds.confirmarPresenca(eventId);
-    } catch (_) {}
+  /// Confirma ou cancela a presença do usuário no evento/treino, dependendo
+  /// do estado atual (`EventModel.confirmado`). Retorna uma mensagem de erro
+  /// amigável em caso de falha, ou `null` em caso de sucesso.
+  Future<String?> togglePresence(String eventId) async {
+    final index = _events.indexWhere((e) => e.id == eventId);
+    if (index == -1 || _pendingPresenceIds.contains(eventId)) return null;
+
+    final original = _events[index];
+    final willConfirm = !original.confirmado;
+
+    // Atualização otimista: já reflete o novo estado na UI.
+    _pendingPresenceIds.add(eventId);
+    _events[index] = original.copyWith(confirmado: willConfirm);
     notifyListeners();
+
+    try {
+      if (willConfirm) {
+        await _ds.confirmarPresenca(eventId);
+      } else {
+        final usuarioId = await _tokenDs.getUserId();
+        if (usuarioId == null) throw Exception('Sessão inválida');
+        await _ds.removerPresenca(eventId, usuarioId);
+      }
+      return null;
+    } catch (e) {
+      // Reverte em caso de erro real (token expirado, sem conexão, etc).
+      // A confirmação em si é idempotente no backend, então erros aqui
+      // já não incluem mais o "Presença já confirmada" (409).
+      _events[index] = original;
+      return willConfirm
+          ? 'Não foi possível confirmar sua presença. Tente novamente.'
+          : 'Não foi possível cancelar sua presença. Tente novamente.';
+    } finally {
+      _pendingPresenceIds.remove(eventId);
+      notifyListeners();
+    }
   }
 }
 
@@ -104,6 +138,80 @@ class AdminAgendaViewModel extends ChangeNotifier {
   }
 
   Future<void> refresh() => load();
+}
+
+// ─── Presença de um Evento (admin) ────────────────────────────────────────────
+/// Item já resolvido (e-mail cruzado com o cadastro de associados) para
+/// exibição na tela administrativa de presença.
+class PresenceListItem {
+  final String usuarioId;
+  final String email;
+  final String name; // nome do associado, ou o próprio email se não encontrado
+  final DateTime? confirmadoEm;
+
+  const PresenceListItem({
+    required this.usuarioId,
+    required this.email,
+    required this.name,
+    this.confirmadoEm,
+  });
+}
+
+class EventPresenceViewModel extends ChangeNotifier {
+  final FeedRemoteDatasource _feedDs = FeedRemoteDatasource();
+  final MembersRemoteDatasource _membersDs = MembersRemoteDatasource();
+  final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
+
+  final EventModel event;
+  EventPresenceViewModel(this.event);
+
+  List<PresenceListItem> _confirmados = [];
+  bool _isLoading = false;
+  String? _error;
+
+  List<PresenceListItem> get confirmados => _confirmados;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  int get totalConfirmados => _confirmados.length;
+
+  Future<void> load() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final atleticaId = await _tokenDs.getAtleticaId();
+
+      // Busca em paralelo: presenças do evento + associados da atlética
+      // (para resolver nome a partir do e-mail).
+      final results = await Future.wait([
+        _feedDs.getPresencas(event.id),
+        if (atleticaId != null) _membersDs.getAssociados(atleticaId),
+      ]);
+
+      final presencas = results[0] as List<EventPresenceModel>;
+      final membros = atleticaId != null
+          ? results[1] as List<MemberModel>
+          : <MemberModel>[];
+
+      final byEmail = {for (final m in membros) m.email.toLowerCase(): m};
+
+      _confirmados = presencas.map((p) {
+        final membro = byEmail[p.email.toLowerCase()];
+        return PresenceListItem(
+          usuarioId: p.usuarioId,
+          email: p.email,
+          name: membro?.name ?? p.email,
+          confirmadoEm: p.confirmadoEm,
+        );
+      }).toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } catch (e) {
+      _error = 'Não foi possível carregar a lista de presença.';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
 
 // ─── Cadastrar / Editar Evento ────────────────────────────────────────────────

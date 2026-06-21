@@ -170,6 +170,7 @@ class EventModel {
   final String time;
   final String place;
   final int bgColor;
+  final bool confirmado;
 
   const EventModel({
     required this.id,
@@ -180,7 +181,20 @@ class EventModel {
     required this.time,
     required this.place,
     required this.bgColor,
+    this.confirmado = false,
   });
+
+  EventModel copyWith({bool? confirmado}) => EventModel(
+    id: id,
+    date: date,
+    type: type,
+    typeColor: typeColor,
+    title: title,
+    time: time,
+    place: place,
+    bgColor: bgColor,
+    confirmado: confirmado ?? this.confirmado,
+  );
 
   factory EventModel.fromJson(Map<String, dynamic> json) {
     const typeColors = {
@@ -209,6 +223,32 @@ class EventModel {
       time:      json['time'] as String? ?? '',
       place:     json['place'] as String? ?? '',
       bgColor:   bgColors[type] ?? 0xFF1E3A5F,
+      confirmado: json['confirmado'] as bool? ?? false,
+    );
+  }
+}
+
+// ─── Event Presence Model (admin) ───────────────────────────────────────────────
+/// Representa um membro que confirmou presença em um evento/treino,
+/// usado na tela administrativa de gestão de presença.
+class EventPresenceModel {
+  final String usuarioId;
+  final String email;
+  final DateTime? confirmadoEm;
+
+  const EventPresenceModel({
+    required this.usuarioId,
+    required this.email,
+    this.confirmadoEm,
+  });
+
+  factory EventPresenceModel.fromJson(Map<String, dynamic> json) {
+    return EventPresenceModel(
+      usuarioId: json['usuarioId'] as String,
+      email: json['email'] as String? ?? '',
+      confirmadoEm: json['confirmadoEm'] != null
+          ? DateTime.tryParse(json['confirmadoEm'] as String)
+          : null,
     );
   }
 }

@@ -835,10 +835,23 @@ class _AgendaContent extends StatelessWidget {
                 Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                   child: SizedBox(width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => context.read<AgendaViewModel>().confirmPresence(e.id),
-                      icon: const Icon(Icons.check_circle_outline, size: 14, color: Colors.white),
-                      label: const Text('Confirmar Presença', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                      style: ElevatedButton.styleFrom(backgroundColor: ext.primaryColor,
+                      onPressed: vm.isPresenceLoading(e.id) ? null : () async {
+                        final agendaVm = context.read<AgendaViewModel>();
+                        final errorMsg = await agendaVm.togglePresence(e.id);
+                        if (errorMsg != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(errorMsg)),
+                          );
+                        }
+                      },
+                      icon: vm.isPresenceLoading(e.id)
+                          ? const SizedBox(width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Icon(e.confirmado ? Icons.check_circle : Icons.check_circle_outline, size: 14, color: Colors.white),
+                      label: Text(e.confirmado ? 'Presença Confirmada' : 'Confirmar Presença',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: e.confirmado ? Colors.green.shade700 : ext.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     ))),

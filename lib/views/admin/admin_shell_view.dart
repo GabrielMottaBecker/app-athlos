@@ -5,7 +5,6 @@ import '../../core/theme/theme_notifier.dart';
 import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
-import '../user/user_main_view.dart' show PerfilView;
 import 'register_event_view.dart';
 import 'register_member_view.dart';
 import 'register_product_view.dart';
@@ -22,25 +21,10 @@ class AdminShellView extends StatefulWidget {
 
 class _AdminShellViewState extends State<AdminShellView> {
   int _tab = 0;
-
-  void _openGestaoAssociados() {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const AdminMembrosView()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    final tabs = [
-      const AdminLojaView(),
-      const AdminAgendaView(),
-      const AdminFeedView(),
-      PerfilView(
-        appBar: const AdminAppBar(subtitle: 'PERFIL'),
-        onGestaoAssociados: _openGestaoAssociados,
-      ),
-    ];
+    final tabs = const [AdminLojaView(), AdminAgendaView(), AdminFeedView(), AdminMembrosView()];
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
@@ -58,7 +42,7 @@ class _AdminShellViewState extends State<AdminShellView> {
             BottomNavigationBarItem(icon: Icon(Icons.store_outlined), activeIcon: Icon(Icons.store), label: 'Loja'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Agenda'),
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Feed'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Perfil'),
+            BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Membros'),
           ],
         ),
       ),
@@ -367,6 +351,19 @@ class _AdminAgendaContentState extends State<_AdminAgendaContent> {
     if (context.mounted) context.read<AdminAgendaViewModel>().refresh();
   }
 
+  Future<void> _openPresenceList(BuildContext context, EventModel event) async {
+    final ext = context.athlos;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ext.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _PresenceListSheet(event: event),
+    );
+  }
+
   Future<void> _confirmDelete(BuildContext ctx, String id, String title) async {
     final ext = ctx.athlos;
     final confirmed = await showDialog<bool>(
@@ -453,6 +450,11 @@ class _AdminAgendaContentState extends State<_AdminAgendaContent> {
                   Text(event.date, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ext.textSecondary)),
                   const SizedBox(width: 10),
                   GestureDetector(
+                    onTap: () => _openPresenceList(context, event),
+                    child: Icon(Icons.people_outline, size: 16, color: ext.textSecondary),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
                     onTap: () => _openEditEvent(event),
                     child: Icon(Icons.edit_outlined, size: 16, color: ext.textSecondary),
                   ),
@@ -486,6 +488,155 @@ class _AdminAgendaContentState extends State<_AdminAgendaContent> {
         }).toList(),
         const SizedBox(height: 72),
       ]),
+    );
+  }
+}
+
+// ─── Lista de presença de um evento (admin) ────────────────────────────────────
+class _PresenceListSheet extends StatefulWidget {
+  final EventModel event;
+  const _PresenceListSheet({required this.event});
+
+  @override
+  State<_PresenceListSheet> createState() => _PresenceListSheetState();
+}
+
+class _PresenceListSheetState extends State<_PresenceListSheet> {
+  late final EventPresenceViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = EventPresenceViewModel(widget.event);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: _vm,
+      child: const _PresenceListSheetContent(),
+    );
+  }
+}
+
+class _PresenceListSheetContent extends StatelessWidget {
+  const _PresenceListSheetContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<EventPresenceViewModel>();
+    final ext = context.athlos;
+    final typeColor = Color(vm.event.typeColor);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.35,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (_, scrollController) => SafeArea(
+        child: Column(children: [
+          Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.only(top: 12, bottom: 14),
+            decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(vm.event.title,
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
+                      child: Text(vm.event.type, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(vm.event.date, style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+                  ]),
+                ]),
+              ),
+              if (!vm.isLoading)
+                _Chip('${vm.totalConfirmados} CONFIRMADOS', const Color(0xFF10B981)),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          Expanded(
+            child: vm.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : vm.error != null
+                    ? _PresenceMessage(icon: Icons.error_outline, text: vm.error!)
+                    : vm.confirmados.isEmpty
+                        ? const _PresenceMessage(
+                            icon: Icons.people_outline,
+                            text: 'Ninguém confirmou presença ainda.')
+                        : ListView.separated(
+                            controller: scrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            itemCount: vm.confirmados.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 4),
+                            itemBuilder: (_, i) {
+                              final item = vm.confirmados[i];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: CircleAvatar(
+                                  radius: 18,
+                                  backgroundColor: ext.primaryColor.withOpacity(0.15),
+                                  child: Text(
+                                    item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
+                                    style: TextStyle(color: ext.primaryColor, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                                title: Text(item.name,
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
+                                subtitle: Text(item.email,
+                                  style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+                                trailing: item.confirmadoEm != null
+                                    ? Text(
+                                        '${item.confirmadoEm!.day.toString().padLeft(2, '0')}/'
+                                        '${item.confirmadoEm!.month.toString().padLeft(2, '0')}',
+                                        style: TextStyle(fontSize: 10, color: ext.textSecondary),
+                                      )
+                                    : null,
+                              );
+                            },
+                          ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _PresenceMessage extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _PresenceMessage({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 36, color: ext.textSecondary.withOpacity(0.4)),
+          const SizedBox(height: 10),
+          Text(text, textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        ]),
+      ),
     );
   }
 }
@@ -736,11 +887,10 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: AppBar(
-        backgroundColor: ext.surfaceColor, elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: ext.textSecondary, size: 20),
-          tooltip: 'Voltar',
-          onPressed: () => Navigator.of(context).pop(),
+        backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(10),
+          child: _AdminAtleticaAvatar(),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _AdminAtleticaNome(),
@@ -760,6 +910,11 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
+            tooltip: 'Sair',
+            onPressed: () => _confirmLogout(context),
           ),
         ],
         bottom: PreferredSize(
