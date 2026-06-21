@@ -18,7 +18,7 @@ Plataforma mobile para gerenciamento de Atléticas Universitárias.
 
 - Flutter `>=3.x` instalado e no PATH
 - Dart SDK `>=3.0.0 <4.0.0`
-- Backend Athlos rodando localmente (ver [app-athlos-backend](../app-athlos-backend))
+- Backend Athlos rodando localmente (ver [app-athlos-backend]([../app-athlos-backend](https://github.com/GabrielMottaBecker/app-athlos-backend)))
 
 ---
 
