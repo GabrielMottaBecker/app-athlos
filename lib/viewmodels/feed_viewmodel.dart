@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/datasources/feed_remote_datasource.dart';
+import '../data/datasources/feed_local_datasource.dart';
 import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
 
 // ─── Feed (usuário) ───────────────────────────────────────────────────────────
 class FeedViewModel extends ChangeNotifier {
   final FeedRemoteDatasource _ds = FeedRemoteDatasource();
+  final FeedLocalDatasource _localDs = FeedLocalDatasource();
   final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _activeFilter = 'RECENTES';
   List<PostModel> _posts = [];
   bool _isLoading = false;
   String? _error;
+  bool _isFromCache = false;
+  DateTime? _lastSyncedAt;
 
   String get activeFilter => _activeFilter;
   List<PostModel> get posts => _posts;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  /// true quando os dados exibidos vieram do cache local (offline / falha de API)
+  bool get isFromCache => _isFromCache;
+  DateTime? get lastSyncedAt => _lastSyncedAt;
 
   static const List<String> filters = ['RECENTES', 'PRESIDÊNCIA', 'ESPORTES'];
 
@@ -35,13 +43,31 @@ class FeedViewModel extends ChangeNotifier {
 
     if (atleticaId == null) return; // sem token, não carrega
 
+    // 1) Mostra o que já existe em cache imediatamente (recuperação ao reabrir o app)
+    final cached = await _localDs.getPosts(atleticaId);
+    if (cached.isNotEmpty) {
+      _posts = cached;
+      _isFromCache = true;
+      _lastSyncedAt = await _localDs.getLastSyncedAt(atleticaId);
+      notifyListeners();
+    }
+
+    // 2) Sincroniza com a API
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      _posts = await _ds.getPosts(atleticaId);
+      final fresh = await _ds.getPosts(atleticaId);
+      _posts = fresh;
+      _isFromCache = false;
+      _lastSyncedAt = DateTime.now();
+      // Persiste localmente para a próxima vez que o app for aberto
+      await _localDs.savePosts(atleticaId, fresh);
     } catch (e) {
+      // Falha de conexão/timeout/erro: mantém o que estava em cache (se houver)
+      // e só expõe erro se não há nada para mostrar.
       _error = e.toString();
+      _isFromCache = _posts.isNotEmpty;
     } finally {
       _isLoading = false;
       notifyListeners();

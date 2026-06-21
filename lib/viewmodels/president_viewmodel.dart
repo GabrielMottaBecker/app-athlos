@@ -85,6 +85,7 @@ class PresidentOnboardingViewModel extends ChangeNotifier {
         corFundo:       _colorToHex(_backgroundColor),
       );
       return AtleticaModel(
+        id:                   data['id'] as String? ?? '',
         name:                 data['nome'] as String? ?? _atleticaName,
         presidentName:        data['nomePresidente'] as String? ?? _presidentName,
         primaryColorValue:    _primaryColor.toARGB32(),
@@ -100,6 +101,7 @@ class PresidentOnboardingViewModel extends ChangeNotifier {
   }
 
   AtleticaModel buildAtleticaModel() => AtleticaModel(
+    id:                  '',  
     name:                 _atleticaName,
     presidentName:        _presidentName,
     primaryColorValue:    _primaryColor.toARGB32(),

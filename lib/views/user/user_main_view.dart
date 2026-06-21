@@ -1,12 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import '../auth/login_view.dart';
 import '../../data/datasources/token_local_datasource.dart';
-import '../../data/repositories/repositories.dart';
+
+/// Mesmo diálogo de confirmação de logout usado no shell do admin
+/// (ver `_confirmLogout` em admin_shell_view.dart), replicado aqui para
+/// manter a AppBar do membro consistente sem criar import cíclico entre
+/// os dois arquivos.
+Future<void> _confirmLogoutMembro(BuildContext context) async {
+  final ext = context.athlos;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      backgroundColor: ext.surfaceColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Sair da conta', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+      content: Text('Tem certeza que deseja sair?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, false),
+          child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, true),
+          child: Text('Sair', style: TextStyle(color: ext.primaryColor, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    await TokenLocalDatasource().clearTokens();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (r) => false,
+    );
+  }
+}
 
 class UserMainView extends StatefulWidget {
   const UserMainView({super.key});
@@ -54,30 +89,218 @@ class _UserMainViewState extends State<UserMainView> {
 }
 
 // ─── Shared User AppBar ───────────────────────────────────────────────────────
-class _UserAppBar extends StatelessWidget implements PreferredSizeWidget {
+class _UserAppBar extends StatefulWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   const _UserAppBar({this.actions});
   @override
   Size get preferredSize => const Size.fromHeight(56);
   @override
+  State<_UserAppBar> createState() => _UserAppBarState();
+}
+
+class _UserAppBarState extends State<_UserAppBar> {
+  late final NotificacoesViewModel _notifVm;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifVm = NotificacoesViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _notifVm.load());
+  }
+
+  @override
+  void dispose() {
+    _notifVm.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    return AppBar(
-      backgroundColor: ext.surfaceColor, elevation: 0,
-      automaticallyImplyLeading: false,
-      title: Row(children: [
-        Container(width: 28, height: 28,
-          decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
-          child: const Icon(Icons.sports, color: Colors.white, size: 16)),
-        const SizedBox(width: 8),
-        Text('ATHLOS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: ext.textPrimary, letterSpacing: 2)),
-      ]),
-      actions: actions ?? [
-        IconButton(icon: Icon(Icons.search, color: ext.textSecondary, size: 22), onPressed: () {}),
-        IconButton(icon: Icon(Icons.notifications_outlined, color: ext.textSecondary, size: 22), onPressed: () {}),
-      ],
-      bottom: PreferredSize(preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: ext.borderColor)),
+    final themeNotifier = context.watch<ThemeNotifier>();
+    final nomeAtletica = themeNotifier.nomeAtletica;
+    final logoUrl = themeNotifier.logoUrl;
+
+    return ChangeNotifierProvider.value(
+      value: _notifVm,
+      child: Builder(builder: (ctx) {
+        final notifVm = ctx.watch<NotificacoesViewModel>();
+        return AppBar(
+          backgroundColor: ext.surfaceColor, elevation: 0,
+          automaticallyImplyLeading: false,
+          title: Row(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: logoUrl != null && logoUrl.isNotEmpty
+                ? Image.network(
+                    logoUrl,
+                    width: 28, height: 28, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _fallbackIcon(ext),
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return Container(width: 28, height: 28, color: ext.surfaceVariant);
+                    },
+                  )
+                : _fallbackIcon(ext),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(nomeAtletica.toUpperCase(), overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: ext.textPrimary, letterSpacing: 2)),
+            ),
+          ]),
+          actions: widget.actions ?? [
+            Stack(children: [
+              IconButton(
+                icon: Icon(Icons.notifications_outlined, color: ext.textSecondary, size: 22),
+                onPressed: () => _openNotificacoes(ctx, notifVm, ext),
+              ),
+              if (notifVm.naoLidas > 0)
+                Positioned(
+                  right: 8, top: 8,
+                  child: Container(
+                    width: 16, height: 16,
+                    decoration: BoxDecoration(color: const Color(0xFFEF4444), shape: BoxShape.circle),
+                    child: Center(child: Text(
+                      notifVm.naoLidas > 9 ? '9+' : '${notifVm.naoLidas}',
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
+                    )),
+                  ),
+                ),
+            ]),
+            IconButton(
+              icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
+              tooltip: 'Sair',
+              onPressed: () => _confirmLogoutMembro(ctx),
+            ),
+          ],
+          bottom: PreferredSize(preferredSize: const Size.fromHeight(1),
+            child: Container(height: 1, color: ext.borderColor)),
+        );
+      }),
+    );
+  }
+
+  Widget _fallbackIcon(AthlosThemeExtension ext) => Container(
+    width: 28, height: 28,
+    decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
+    child: const Icon(Icons.sports, color: Colors.white, size: 16),
+  );
+
+  void _openNotificacoes(BuildContext context, NotificacoesViewModel vm, AthlosThemeExtension ext) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: vm,
+        child: _NotificacoesSheet(ext: ext),
+      ),
+    );
+  }
+}
+
+// ─── Notificações Sheet ───────────────────────────────────────────────────────
+class _NotificacoesSheet extends StatelessWidget {
+  final AthlosThemeExtension ext;
+  const _NotificacoesSheet({required this.ext});
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<NotificacoesViewModel>();
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      minChildSize: 0.4,
+      builder: (_, controller) => Container(
+        decoration: BoxDecoration(
+          color: ext.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(children: [
+          // Handle
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+            child: Row(children: [
+              Text('Notificações', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+              if (vm.naoLidas > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(10)),
+                  child: Text('${vm.naoLidas}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                ),
+              ],
+              const Spacer(),
+              if (vm.naoLidas > 0)
+                TextButton(
+                  onPressed: () => vm.marcarTodasComoLidas(),
+                  child: Text('Marcar todas', style: TextStyle(fontSize: 12, color: ext.primaryColor)),
+                ),
+            ]),
+          ),
+          Divider(color: ext.borderColor, height: 1),
+          // Lista
+          Expanded(
+            child: vm.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : vm.notificacoes.isEmpty
+                ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.notifications_none, size: 48, color: ext.textSecondary.withOpacity(0.4)),
+                    const SizedBox(height: 12),
+                    Text('Nenhuma notificação', style: TextStyle(fontSize: 14, color: ext.textSecondary)),
+                  ]))
+                : ListView.separated(
+                    controller: controller,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: vm.notificacoes.length,
+                    separatorBuilder: (_, __) => Divider(color: ext.borderColor, height: 1, indent: 16, endIndent: 16),
+                    itemBuilder: (_, i) {
+                      final n = vm.notificacoes[i];
+                      final lida = n['lida'] as bool? ?? false;
+                      return InkWell(
+                        onTap: lida ? null : () => vm.marcarComoLida(n['id'] as String),
+                        child: Container(
+                          color: lida ? Colors.transparent : ext.primaryColor.withOpacity(0.05),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                color: lida ? ext.surfaceVariant : ext.primaryColor.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.notifications_outlined, size: 18,
+                                color: lida ? ext.textSecondary : ext.primaryColor),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              if (n['titulo'] != null)
+                                Text(n['titulo'] as String,
+                                  style: TextStyle(fontSize: 13, fontWeight: lida ? FontWeight.w400 : FontWeight.w600, color: ext.textPrimary)),
+                              if (n['mensagem'] != null)
+                                Text(n['mensagem'] as String,
+                                  style: TextStyle(fontSize: 12, color: ext.textSecondary, height: 1.4)),
+                            ])),
+                            if (!lida)
+                              Container(width: 8, height: 8,
+                                margin: const EdgeInsets.only(top: 4),
+                                decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
+                          ]),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -720,82 +943,312 @@ class _ParticipantesContent extends StatelessWidget {
 }
 
 // ─── Perfil View ──────────────────────────────────────────────────────────────
-class PerfilView extends StatelessWidget {
-  const PerfilView({super.key});
+class PerfilView extends StatefulWidget {
+  /// AppBar a ser usada nesta tela. Se nulo, usa o `_UserAppBar` padrão do membro.
+  final PreferredSizeWidget? appBar;
+
+  /// Quando informado, o item "Gestão de Associados" passa a navegar para cá
+  /// em vez de abrir o modal de detalhes do perfil. Usado pelo shell do
+  /// admin/presidente para abrir a listagem/CRUD de membros.
+  final VoidCallback? onGestaoAssociados;
+
+  const PerfilView({super.key, this.appBar, this.onGestaoAssociados});
+
+  @override
+  State<PerfilView> createState() => _PerfilViewState();
+}
+
+class _PerfilViewState extends State<PerfilView> {
+  late final PerfilViewModel _vm;
+
+  @override
+  void initState() {
+    super.initState();
+    _vm = PerfilViewModel();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
+  }
+
+  @override
+  void dispose() {
+    _vm.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ext = context.athlos;
-
-    return FutureBuilder<String?>(
-      future: TokenLocalDatasource().getUserId(),
-      builder: (context, snapshot) {
-        final userId = snapshot.data;
-        final member = userId != null
-            ? MemberRepository().getAdminMembers()
-                .firstWhere((m) => m.id == userId,
-                    orElse: () => MemberRepository().getAdminMembers().first)
-            : null;
-
-        final name     = member?.name ?? 'Usuário';
-        final initials = name.split(' ').take(2).map((e) => e[0]).join().toUpperCase();
-        final cargo    = member?.role ?? 'Membro';
-
-        return Scaffold(
-          resizeToAvoidBottomInset: false,
-          backgroundColor: ext.backgroundColor,
-          appBar: _UserAppBar(),
-          body: ListView(children: [
-            Container(
-              color: ext.surfaceColor, padding: const EdgeInsets.all(20),
-              child: Column(children: [
-                Stack(children: [
-                  Container(width: 80, height: 80,
-                    decoration: BoxDecoration(color: ext.primaryColor.withOpacity(0.15), shape: BoxShape.circle, border: Border.all(color: ext.primaryColor, width: 2.5)),
-                    child: Center(child: Text(initials, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
-                  Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
-                    decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
-                    child: const Icon(Icons.edit, color: Colors.white, size: 12))),
-                ]),
-                const SizedBox(height: 12),
-                Text(name, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-                const SizedBox(height: 4),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(20)),
-                  child: Text('Cargo: $cargo', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500))),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
-              _PerfilItem(icon: Icons.people_outline, label: 'Gestão de Associados', ext: ext),
-              _PerfilItem(icon: Icons.payment_outlined, label: 'Meus Pagamentos', ext: ext),
-              _PerfilItem(icon: Icons.settings_outlined, label: 'Configurações da Conta', ext: ext),
-            ]),
-            const SizedBox(height: 8),
-            _PerfilSection(title: 'SESSÃO', ext: ext, items: [
-              _PerfilItem(
-                icon: Icons.logout,
-                label: 'Sair da Conta',
-                ext: ext,
-                isDestructive: true,
-                onTap: () async {
-                  await TokenLocalDatasource().clearTokens();
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginView()),
-                    (r) => false,
-                  );
-                },
-              ),
-            ]),
-            const SizedBox(height: 80),
-          ]),
-        ); // fecha Scaffold
-      },   // fecha builder
-    );     // fecha FutureBuilder
+    return ChangeNotifierProvider.value(
+      value: _vm,
+      child: _PerfilContent(
+        appBar: widget.appBar,
+        onGestaoAssociados: widget.onGestaoAssociados,
+      ),
+    );
   }
 }
 
+class _PerfilContent extends StatefulWidget {
+  final PreferredSizeWidget? appBar;
+  final VoidCallback? onGestaoAssociados;
+  const _PerfilContent({this.appBar, this.onGestaoAssociados});
+  @override
+  State<_PerfilContent> createState() => _PerfilContentState();
+}
+
+class _PerfilContentState extends State<_PerfilContent> {
+
+  void _showFotoOptions(PerfilViewModel vm, AthlosThemeExtension ext) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: ext.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+            decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('Foto de perfil', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          const SizedBox(height: 12),
+          ListTile(
+            leading: Icon(Icons.photo_library_outlined, color: ext.primaryColor),
+            title: Text('Escolher da galeria', style: TextStyle(fontSize: 13, color: ext.textPrimary)),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              vm.pickAndUploadFoto(ImageSource.gallery);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.photo_camera_outlined, color: ext.primaryColor),
+            title: Text('Tirar foto', style: TextStyle(fontSize: 13, color: ext.textPrimary)),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              vm.pickAndUploadFoto(ImageSource.camera);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
+
+  void _showPerfilModal(PerfilViewModel vm, AthlosThemeExtension ext) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: ext.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+            decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          Container(width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: ext.primaryColor.withOpacity(0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: ext.primaryColor, width: 2),
+            ),
+            child: Center(child: Text(vm.initials,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+          const SizedBox(height: 12),
+          Text(vm.nome.isEmpty ? 'Usuário' : vm.nome,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          const SizedBox(height: 4),
+          Text(vm.email, style: TextStyle(fontSize: 12, color: ext.textSecondary)),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: ext.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12)),
+            child: Text(vm.cargo,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ext.primaryColor))),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: ext.backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: ext.borderColor),
+            ),
+            child: Column(children: [
+              _InfoRow(label: 'Nome',   value: vm.nome,  ext: ext),
+              Divider(color: ext.borderColor, height: 20),
+              _InfoRow(label: 'E-mail', value: vm.email, ext: ext),
+              Divider(color: ext.borderColor, height: 20),
+              _InfoRow(label: 'Cargo',  value: vm.cargo, ext: ext),
+              Divider(color: ext.borderColor, height: 20),
+              _InfoRow(label: 'Perfil', value: vm.role,  ext: ext),
+            ]),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(width: double.infinity, child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: ext.borderColor),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: Text('Fechar', style: TextStyle(fontSize: 14, color: ext.textSecondary)),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm  = context.watch<PerfilViewModel>();
+    final ext = context.athlos;
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: ext.backgroundColor,
+      appBar: widget.appBar ?? _UserAppBar(),
+      body: vm.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(children: [
+              Container(
+                color: ext.surfaceColor, padding: const EdgeInsets.all(20),
+                child: Column(children: [
+                  InkWell(
+                    onTap: vm.isUploadingFoto ? null : () => _showFotoOptions(vm, ext),
+                    borderRadius: BorderRadius.circular(40),
+                    child: Stack(children: [
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          color: ext.primaryColor.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: ext.primaryColor, width: 2.5),
+                        ),
+                        child: ClipOval(
+                          child: vm.fotoUrl != null && vm.fotoUrl!.isNotEmpty
+                              ? Image.network(
+                                  vm.fotoUrl!,
+                                  width: 80, height: 80, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(child: Text(vm.initials,
+                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+                                  loadingBuilder: (_, child, progress) {
+                                    if (progress == null) return child;
+                                    return Center(child: Text(vm.initials,
+                                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)));
+                                  },
+                                )
+                              : Center(child: Text(vm.initials,
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+                        ),
+                      ),
+                      if (vm.isUploadingFoto)
+                        Container(width: 80, height: 80,
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: const Center(child: SizedBox(width: 22, height: 22,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4)))),
+                      Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
+                        decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
+                        child: const Icon(Icons.edit, color: Colors.white, size: 12))),
+                    ]),
+                  ),
+                  if (vm.uploadError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(vm.uploadError!, textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                  ],
+                  const SizedBox(height: 12),
+                  Text(vm.nome.isEmpty ? 'Usuário' : vm.nome,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+                  const SizedBox(height: 4),
+                  if (vm.email.isNotEmpty)
+                    Text(vm.email, style: TextStyle(fontSize: 12, color: ext.textSecondary)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(20)),
+                    child: Text(vm.cargo,
+                      style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w500))),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              // Seção visível apenas para Administrador/Super Admin — membro comum não vê.
+              if (vm.isAdmin) ...[
+                _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
+                  _PerfilItem(
+                    icon: Icons.people_outline,
+                    label: 'Gestão de Associados',
+                    ext: ext,
+                    onTap: widget.onGestaoAssociados ?? () => _showPerfilModal(vm, ext),
+                  ),
+                  _PerfilItem(
+                    icon: Icons.payment_outlined,
+                    label: 'Relatório Financeiro',
+                    ext: ext,
+                  ),
+                  _PerfilItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Configurações da Conta',
+                    ext: ext,
+                    onTap: () => _showPerfilModal(vm, ext),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ] else ...[
+                // Membro comum: card próprio com Pagamentos e Configurações da Conta.
+                _PerfilSection(title: 'CONTA', ext: ext, items: [
+                  _PerfilItem(
+                    icon: Icons.payment_outlined,
+                    label: 'Meus Pagamentos',
+                    ext: ext,
+                  ),
+                  _PerfilItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Configurações da Conta',
+                    ext: ext,
+                    onTap: () => _showPerfilModal(vm, ext),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ],
+              _PerfilSection(title: 'SESSÃO', ext: ext, items: [
+                _PerfilItem(
+                  icon: Icons.logout,
+                  label: 'Sair da Conta',
+                  ext: ext,
+                  isDestructive: true,
+                  onTap: () async {
+                    await TokenLocalDatasource().clearTokens();
+                    if (!context.mounted) return;
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginView()),
+                      (r) => false,
+                    );
+                  },
+                ),
+              ]),
+              const SizedBox(height: 80),
+            ]),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label, value;
+  final AthlosThemeExtension ext;
+  const _InfoRow({required this.label, required this.value, required this.ext});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(child: Text(label, style: TextStyle(fontSize: 12, color: ext.textSecondary))),
+    Flexible(child: Text(value.isEmpty ? '—' : value,
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ext.textPrimary),
+      textAlign: TextAlign.right)),
+  ]);
+}
 
 class _PerfilSection extends StatelessWidget {
   final String title; final List<Widget> items; final AthlosThemeExtension ext;
@@ -824,7 +1277,9 @@ class _PerfilItem extends StatelessWidget {
       child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(children: [
           Container(width: 32, height: 32,
-            decoration: BoxDecoration(color: isDestructive ? const Color(0xFFEF4444).withOpacity(0.1) : ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: isDestructive ? const Color(0xFFEF4444).withOpacity(0.1) : ext.surfaceVariant,
+              borderRadius: BorderRadius.circular(8)),
             child: Icon(icon, size: 16, color: color)),
           const SizedBox(width: 12),
           Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w500))),

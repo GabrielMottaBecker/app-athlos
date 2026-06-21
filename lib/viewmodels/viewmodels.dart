@@ -4,3 +4,7 @@ export 'loja_viewmodel.dart';
 export 'agenda_viewmodel.dart';
 export 'members_viewmodel.dart';
 export 'president_viewmodel.dart';
+export 'super_admin_viewmodel.dart';
+export 'atletica_settings_viewmodel.dart';
+export 'perfil_viewmodel.dart';
+export 'notificacoes_viewmodel.dart';

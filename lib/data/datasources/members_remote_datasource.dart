@@ -15,11 +15,20 @@ class MembersRemoteDatasource {
 
   Future<String?> createAssociado(Map<String, dynamic> body) async {
     final response = await DioClient.associacao.post('/associados', data: body);
-    return response.data['id'] as String?;
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return data['id'] as String?;
+    }
+    return null;
   }
 
   Future<void> updateAssociado(String id, Map<String, dynamic> body) async {
-    await DioClient.associacao.patch('/associados/$id', data: body);
+    await DioClient.associacao.put('/associados/$id', data: body);
+  }
+
+  Future<void> assignCargo(String id, String? cargoId) async {
+    await DioClient.associacao
+        .patch('/associados/$id/cargo', data: {'cargoId': cargoId});
   }
 
   Future<void> changeStatus(String id, String status) async {

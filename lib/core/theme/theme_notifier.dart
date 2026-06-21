@@ -34,13 +34,25 @@ class AthlosColorPalettes {
 
 // ─── Theme Notifier ───────────────────────────────────────────────────────────
 class ThemeNotifier extends ChangeNotifier {
-  Color _primaryColor = const Color(0xFF2563EB);
-  Color _backgroundColor = const Color(0xFFF8FAFC);
+  static const Color defaultPrimaryColor = Color(0xFF2563EB);
+  static const Color defaultBackgroundColor = Color(0xFFF8FAFC);
+  static const String defaultNomeAtletica = 'ATHLOS';
+
+  Color _primaryColor = defaultPrimaryColor;
+  Color _backgroundColor = defaultBackgroundColor;
   bool _isDark = false;
+
+  // Identidade visual da atlética (nome + logo), independente das cores.
+  // Não fica dentro do AthlosThemeExtension porque texto/URL não são
+  // interpoláveis pelo lerp() do ThemeExtension (que é só para Color).
+  String _nomeAtletica = defaultNomeAtletica;
+  String? _logoUrl;
 
   Color get primaryColor => _primaryColor;
   Color get backgroundColor => _backgroundColor;
   bool get isDark => _isDark;
+  String get nomeAtletica => _nomeAtletica;
+  String? get logoUrl => _logoUrl;
 
   void setPrimaryColor(Color color) {
     _primaryColor = color;
@@ -51,6 +63,43 @@ class ThemeNotifier extends ChangeNotifier {
     _backgroundColor = color;
     _isDark = color.computeLuminance() < 0.2;
     notifyListeners();
+  }
+
+  void setIdentidade({String? nome, String? logoUrl}) {
+    if (nome != null && nome.trim().isNotEmpty) _nomeAtletica = nome.trim();
+    _logoUrl = logoUrl;
+    notifyListeners();
+  }
+
+  /// Restaura as cores e identidade padrão (usuário sem atlética vinculada,
+  /// ex.: Super Admin, ou falha ao buscar os dados da atlética no backend).
+  void resetToDefault() {
+    _primaryColor = defaultPrimaryColor;
+    _backgroundColor = defaultBackgroundColor;
+    _isDark = false;
+    _nomeAtletica = defaultNomeAtletica;
+    _logoUrl = null;
+    notifyListeners();
+  }
+
+  /// Aplica cores vindas do backend no formato "#RRGGBB".
+  /// Valores nulos ou inválidos são ignorados silenciosamente.
+  void applyHexColors({String? primaryHex, String? backgroundHex}) {
+    final primary = _tryParseHex(primaryHex);
+    if (primary != null) setPrimaryColor(primary);
+
+    final background = _tryParseHex(backgroundHex);
+    if (background != null) setBackgroundColor(background);
+  }
+
+  static Color? _tryParseHex(String? hex) {
+    if (hex == null) return null;
+    try {
+      final clean = hex.replaceAll('#', '');
+      return Color(int.parse('FF$clean', radix: 16));
+    } catch (_) {
+      return null;
+    }
   }
 
   ThemeData buildTheme() {

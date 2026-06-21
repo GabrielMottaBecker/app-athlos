@@ -52,6 +52,34 @@ class PostModel {
     return '${diff.inDays}d atrás';
   }
 
+  /// Serializa o model para persistência local (cache).
+  /// Diferente do formato cru da API: aqui já guardamos os campos
+  /// derivados (timeAgo, categoryColor) prontos para exibição.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'category': category,
+    'categoryColor': categoryColor,
+    'title': title,
+    'timeAgo': timeAgo,
+    'likes': likes,
+    'comments': comments,
+    'hasImage': hasImage,
+    'imagePath': imagePath,
+  };
+
+  /// Reconstrói o model a partir do cache local (formato de [toJson]).
+  factory PostModel.fromCacheJson(Map<String, dynamic> json) => PostModel(
+    id: json['id'] as String,
+    category: json['category'] as String,
+    categoryColor: json['categoryColor'] as int,
+    title: json['title'] as String,
+    timeAgo: json['timeAgo'] as String,
+    likes: json['likes'] as int? ?? 0,
+    comments: json['comments'] as int? ?? 0,
+    hasImage: json['hasImage'] as bool? ?? false,
+    imagePath: json['imagePath'] as String?,
+  );
+
   PostModel copyWith({
     String? category,
     int? categoryColor,
@@ -85,6 +113,8 @@ class ProductModel {
   final String tag;
   final String? imagePath;
   final String status;
+  final String description;   
+  final int estoque;          
 
   const ProductModel({
     required this.id,
@@ -93,16 +123,20 @@ class ProductModel {
     required this.tag,
     this.imagePath,
     this.status = 'DISPONIVEL',
+    this.description = '',
+    this.estoque = 0,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
-      id:        json['id'] as String,
-      name:      json['nome'] as String? ?? '',
-      price:     (json['preco'] as num?)?.toDouble() ?? 0.0,
-      tag:       json['categoria'] as String? ?? 'Geral',
-      imagePath: json['imagemUrl'] as String?,
-      status:    json['status'] as String? ?? 'DISPONIVEL',
+      id:          json['id'] as String,
+      name:        json['nome'] as String? ?? '',
+      price:       (json['preco'] as num?)?.toDouble() ?? 0.0,
+      tag:         json['categoria'] as String? ?? 'Geral',
+      imagePath:   json['imagemUrl'] as String?,
+      status:      json['status'] as String? ?? 'DISPONIVEL',
+      description: json['descricao'] as String? ?? '',
+      estoque:     (json['estoque'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -112,13 +146,17 @@ class ProductModel {
     String? tag,
     Object? imagePath = _sentinel,
     String? status,
+    String? description,
+    int? estoque,
   }) => ProductModel(
-    id:        id,
-    name:      name ?? this.name,
-    price:     price ?? this.price,
-    tag:       tag ?? this.tag,
-    imagePath: imagePath == _sentinel ? this.imagePath : imagePath as String?,
-    status:    status ?? this.status,
+    id:          id,
+    name:        name ?? this.name,
+    price:       price ?? this.price,
+    tag:         tag ?? this.tag,
+    imagePath:   imagePath == _sentinel ? this.imagePath : imagePath as String?,
+    status:      status ?? this.status,
+    description: description ?? this.description,
+    estoque:     estoque ?? this.estoque,
   );
 }
 
@@ -186,6 +224,7 @@ class MemberModel {
   final String ra;
   final String curso;
   final String senha;
+  final String telefone;
 
   const MemberModel({
     required this.id,
@@ -197,6 +236,7 @@ class MemberModel {
     required this.ra,
     required this.curso,
     required this.senha,
+    this.telefone = '',
   });
 
   // Getters derivados do role — sem campos extras
@@ -206,15 +246,18 @@ class MemberModel {
 
   factory MemberModel.fromJson(Map<String, dynamic> json) {
     return MemberModel(
-      id:     json['id'] as String,
-      rank:   0,
-      name:   json['nome'] as String? ?? '',
-      role:   json['cargo']?['nome'] as String? ?? 'MEMBRO',
-      status: json['status'] as String? ?? 'ATIVO',
-      email:  json['email'] as String? ?? '',
-      ra:     json['documento'] as String? ?? '',
-      curso:  json['curso'] as String? ?? '',
-      senha:  '',
+      id:       json['id'] as String,
+      rank:     0,
+      name:     json['nome'] as String? ?? '',
+      role:     json['cargo']?['nome'] as String? ?? 'MEMBRO',
+      status:   json['status'] as String? ?? 'ATIVO',
+      email:    json['email'] as String? ?? '',
+      ra:       json['documento'] as String? ?? '',
+      // 'curso' não existe no backend (tabela associados não tem essa coluna);
+      // permanece vazio até que o conceito seja persistido no schema/DTO.
+      curso:    json['curso'] as String? ?? '',
+      senha:    '',
+      telefone: json['telefone'] as String? ?? '',
     );
   }
 
@@ -226,27 +269,31 @@ class MemberModel {
     String? ra,
     String? curso,
     String? senha,
+    String? telefone,
   }) => MemberModel(
-    id:     id,
-    rank:   rank,
-    name:   name ?? this.name,
-    role:   role ?? this.role,
-    status: status ?? this.status,
-    email:  email ?? this.email,
-    ra:     ra ?? this.ra,
-    curso:  curso ?? this.curso,
-    senha:  senha ?? this.senha,
+    id:       id,
+    rank:     rank,
+    name:     name ?? this.name,
+    role:     role ?? this.role,
+    status:   status ?? this.status,
+    email:    email ?? this.email,
+    ra:       ra ?? this.ra,
+    curso:    curso ?? this.curso,
+    senha:    senha ?? this.senha,
+    telefone: telefone ?? this.telefone,
   );
 }
 
 // ─── Atletica Model ───────────────────────────────────────────────────────────
 class AtleticaModel {
+  final String id;
   final String name;
   final String presidentName;
   final int primaryColorValue;
   final int backgroundColorValue;
 
   const AtleticaModel({
+    required this.id,
     required this.name,
     required this.presidentName,
     required this.primaryColorValue,

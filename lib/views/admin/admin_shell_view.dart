@@ -5,12 +5,14 @@ import '../../core/theme/theme_notifier.dart';
 import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
+import '../user/user_main_view.dart' show PerfilView;
 import 'register_event_view.dart';
 import 'register_member_view.dart';
 import 'register_product_view.dart';
 import 'register_post_view.dart';
 import '../auth/login_view.dart';
 import '../../data/datasources/token_local_datasource.dart';
+import 'atletica_settings_view.dart';
 
 class AdminShellView extends StatefulWidget {
   const AdminShellView({super.key});
@@ -20,10 +22,25 @@ class AdminShellView extends StatefulWidget {
 
 class _AdminShellViewState extends State<AdminShellView> {
   int _tab = 0;
+
+  void _openGestaoAssociados() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const AdminMembrosView()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    final tabs = const [AdminLojaView(), AdminAgendaView(), AdminFeedView(), AdminMembrosView()];
+    final tabs = [
+      const AdminLojaView(),
+      const AdminAgendaView(),
+      const AdminFeedView(),
+      PerfilView(
+        appBar: const AdminAppBar(subtitle: 'PERFIL'),
+        onGestaoAssociados: _openGestaoAssociados,
+      ),
+    ];
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
@@ -41,7 +58,7 @@ class _AdminShellViewState extends State<AdminShellView> {
             BottomNavigationBarItem(icon: Icon(Icons.store_outlined), activeIcon: Icon(Icons.store), label: 'Loja'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Agenda'),
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Feed'),
-            BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Membros'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Perfil'),
           ],
         ),
       ),
@@ -97,13 +114,18 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
       leading: Padding(padding: const EdgeInsets.all(10),
-        child: CircleAvatar(backgroundColor: ext.primaryColor.withOpacity(0.15),
-          child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+        child: _AdminAtleticaAvatar()),
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Athlos Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        _AdminAtleticaNome(),
         Text(subtitle, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
       ]),
       actions: actions ?? [
+        IconButton(
+          icon: Icon(Icons.settings_outlined, color: ext.textSecondary, size: 20),
+          tooltip: 'Configurações da Atlética',
+          onPressed: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const AtleticaSettingsView())),
+        ),
         IconButton(
           icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
           tooltip: 'Sair',
@@ -112,6 +134,49 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
       bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: ext.borderColor)),
     );
+  }
+}
+
+// ─── Admin AppBar: avatar com a logo da atlética (com fallback) ───────────────
+class _AdminAtleticaAvatar extends StatelessWidget {
+  const _AdminAtleticaAvatar();
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    final logoUrl = context.watch<ThemeNotifier>().logoUrl;
+
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return CircleAvatar(
+        backgroundColor: ext.primaryColor.withOpacity(0.15),
+        child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+      );
+    }
+
+    return ClipOval(
+      child: Image.network(
+        logoUrl, width: 36, height: 36, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => CircleAvatar(
+          backgroundColor: ext.primaryColor.withOpacity(0.15),
+          child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+        ),
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return CircleAvatar(backgroundColor: ext.surfaceVariant);
+        },
+      ),
+    );
+  }
+}
+
+// ─── Admin AppBar: nome real da atlética (com fallback) ───────────────────────
+class _AdminAtleticaNome extends StatelessWidget {
+  const _AdminAtleticaNome();
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    final nomeAtletica = context.watch<ThemeNotifier>().nomeAtletica;
+    return Text(nomeAtletica, overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary));
   }
 }
 
@@ -221,7 +286,8 @@ class _AdminLojaContentState extends State<_AdminLojaContent> {
               child: p.imagePath != null
                 ? ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                    child: Image.file(File(p.imagePath!), width: double.infinity, height: 140, fit: BoxFit.cover),
+                    child: Image.network(p.imagePath!, width: double.infinity, height: 140, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25)))),
                   )
                 : Center(child: Icon(Icons.checkroom_outlined, size: 44, color: ext.textSecondary.withOpacity(0.25))),
             ),
@@ -670,16 +736,14 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: AppBar(
-        backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
-        leading: Padding(
-          padding: const EdgeInsets.all(10),
-          child: CircleAvatar(
-            backgroundColor: ext.primaryColor.withOpacity(0.15),
-            child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
-          ),
+        backgroundColor: ext.surfaceColor, elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: ext.textSecondary, size: 20),
+          tooltip: 'Voltar',
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Athlos Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          _AdminAtleticaNome(),
           Text('GESTÃO DE MEMBROS', style: TextStyle(fontSize: 10, color: ext.textSecondary)),
         ]),
         actions: [
@@ -696,11 +760,6 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
-            tooltip: 'Sair',
-            onPressed: () => _confirmLogout(context),
           ),
         ],
         bottom: PreferredSize(

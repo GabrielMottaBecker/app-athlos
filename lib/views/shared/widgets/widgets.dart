@@ -1,6 +1,7 @@
 import 'package:athlos/core/theme/theme_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 // ─── Athlos Avatar ────────────────────────────────────────────────────────────
 class AthlosAvatar extends StatelessWidget {
@@ -60,20 +61,39 @@ class AthlosAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
+    final themeNotifier = context.watch<ThemeNotifier>();
+    final nomeAtletica = themeNotifier.nomeAtletica;
+    final logoUrl = themeNotifier.logoUrl;
+
     return AppBar(
       backgroundColor: ext.surfaceColor,
       elevation: 0,
       automaticallyImplyLeading: automaticallyImplyLeading,
       leading: automaticallyImplyLeading ? null : const SizedBox.shrink(),
       title: showLogo ? Row(children: [
-        Container(
-          width: 28, height: 28,
-          decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
-          child: const Icon(Icons.sports, color: Colors.white, size: 16),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: logoUrl != null && logoUrl.isNotEmpty
+            ? Image.network(
+                logoUrl,
+                width: 28, height: 28, fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _fallbackIcon(ext),
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    width: 28, height: 28,
+                    color: ext.surfaceVariant,
+                  );
+                },
+              )
+            : _fallbackIcon(ext),
         ),
         const SizedBox(width: 8),
-        Text('ATHLOS', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900,
-            color: ext.textPrimary, letterSpacing: 2)),
+        Flexible(
+          child: Text(nomeAtletica.toUpperCase(), overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900,
+              color: ext.textPrimary, letterSpacing: 2)),
+        ),
       ]) : (title != null ? Text(title!, style: TextStyle(fontSize: 16,
           fontWeight: FontWeight.w600, color: ext.textPrimary)) : null),
       actions: actions,
@@ -83,6 +103,12 @@ class AthlosAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
     );
   }
+
+  Widget _fallbackIcon(AthlosThemeExtension ext) => Container(
+    width: 28, height: 28,
+    decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
+    child: const Icon(Icons.sports, color: Colors.white, size: 16),
+  );
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────

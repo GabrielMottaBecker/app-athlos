@@ -29,6 +29,8 @@ class _RegisterProductContent extends StatefulWidget {
 class _RegisterProductContentState extends State<_RegisterProductContent> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _estoqueController = TextEditingController();
 
   @override
   void initState() {
@@ -37,6 +39,8 @@ class _RegisterProductContentState extends State<_RegisterProductContent> {
     if (p != null) {
       _nameController.text = p.name;
       _priceController.text = p.price.toStringAsFixed(2).replaceAll('.', ',');
+      _descriptionController.text = p.description;
+      _estoqueController.text = p.estoque.toString();
     }
   }
 
@@ -44,6 +48,8 @@ class _RegisterProductContentState extends State<_RegisterProductContent> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _descriptionController.dispose();
+    _estoqueController.dispose();
     super.dispose();
   }
 
@@ -183,10 +189,24 @@ class _RegisterProductContentState extends State<_RegisterProductContent> {
               AthlosTextField(hint: 'Ex: Camiseta Atlética 2026', label: 'NOME DO PRODUTO', controller: _nameController),
               const SizedBox(height: 12),
               AthlosTextField(
+                hint: 'Ex: Camiseta oficial da atlética, 100% algodão',
+                label: 'DESCRIÇÃO',
+                controller: _descriptionController,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              AthlosTextField(
                 hint: '0,00',
                 label: 'PREÇO (R\$)',
                 controller: _priceController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 12),
+              AthlosTextField(
+                hint: 'Ex: 100',
+                label: 'ESTOQUE',
+                controller: _estoqueController,
+                keyboardType: TextInputType.number,
               ),
             ])),
             const SizedBox(height: 14),
@@ -251,6 +271,8 @@ class _RegisterProductContentState extends State<_RegisterProductContent> {
                 final ok = await context.read<RegisterProductViewModel>().save(
                   name: _nameController.text,
                   price: _priceController.text,
+                  description: _descriptionController.text,
+                  estoque: _estoqueController.text,
                 );
                 if (ok && context.mounted) Navigator.pop(context);
               },

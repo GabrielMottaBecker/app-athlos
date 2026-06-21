@@ -119,17 +119,19 @@ class RegisterEventViewModel extends ChangeNotifier {
   bool get isEditMode => initialEvent != null;
   String get selectedType => _selectedType;
 
-  static const List<String> types = ['TREINO', 'EVENTO SOCIAL', 'EXTRAS'];
+  static const List<String> types = ['TREINO', 'EVENTO SOCIAL', 'EXTRAS', 'COMPETICAO'];
 
   static const Map<String, int> _typeColors = {
     'TREINO':        0xFF10B981,
     'EVENTO SOCIAL': 0xFFF59E0B,
     'EXTRAS':        0xFF8B5CF6,
+    'COMPETICAO':    0xFFEF4444,
   };
   static const Map<String, int> _bgColors = {
     'TREINO':        0xFF1E3A5F,
     'EVENTO SOCIAL': 0xFF3A1E5F,
     'EXTRAS':        0xFF2E1E5F,
+    'COMPETICAO':    0xFF5F1E1E,
   };
 
   RegisterEventViewModel({this.initialEvent}) {
@@ -151,27 +153,40 @@ class RegisterEventViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      final atleticaId = await _tokenDs.getAtleticaId();
       final timeStr = [startTime.trim(), endTime.trim()]
           .where((t) => t.isNotEmpty)
           .join(' – ');
 
-      final body = {
-        'title':      title.trim().toUpperCase(),
-        'date':       date.trim().toUpperCase(),
-        'type':       _selectedType,
-        'time':       timeStr,
-        'place':      place.trim(),
-        'atleticaId': atleticaId,
-      };
-
       if (isEditMode) {
+        // UpdateEventoDto não aceita atleticaId
+        final body = {
+          'title':     title.trim().toUpperCase(),
+          'date':      date.trim().toUpperCase(),
+          'type':      _selectedType,
+          'typeColor': _typeColors[_selectedType],
+          'time':      timeStr,
+          'place':     place.trim(),
+          'bgColor':   _bgColors[_selectedType],
+        };
         await _ds.updateEvento(initialEvent!.id, body);
       } else {
+        final atleticaId = await _tokenDs.getAtleticaId();
+        final body = {
+          'title':      title.trim().toUpperCase(),
+          'date':       date.trim().toUpperCase(),
+          'type':       _selectedType,
+          'typeColor':  _typeColors[_selectedType],
+          'time':       timeStr,
+          'place':      place.trim(),
+          'bgColor':    _bgColors[_selectedType],
+          'atleticaId': atleticaId,
+        };
         await _ds.createEvento(body);
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      // ignore: avoid_print
+      print('>>> ERRO save evento: $e');
       return false;
     } finally {
       _isLoading = false;

@@ -1,3 +1,4 @@
+import 'package:athlos/core/theme/atletica_theme_loader.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/theme_notifier.dart';
@@ -6,6 +7,8 @@ import '../user/user_main_view.dart';
 import '../president/president_onboarding_view.dart';
 import '../admin/admin_shell_view.dart';
 import '../shared/widgets/widgets.dart';
+import '../superadmin/super_admin_shell_view.dart';
+import 'confirmar_associado_view.dart';
 
 class LoginView extends StatelessWidget {
   const LoginView({super.key});
@@ -39,11 +42,11 @@ class _LoginContentState extends State<_LoginContent> {
 
   void _handleNavigation(BuildContext context, String role) {
     switch (role) {
-      case 'president':
+      case 'SUPER_ADMIN':
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => const PresidentOnboardingView()));
+          MaterialPageRoute(builder: (_) => const SuperAdminShellView()));
         break;
-      case 'admin':
+      case 'ADMINISTRADOR':
         Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (_) => const AdminShellView()));
         break;
@@ -59,8 +62,10 @@ class _LoginContentState extends State<_LoginContent> {
     final ext = context.athlos;
 
     if (vm.state == AuthState.success && vm.role != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _handleNavigation(context, vm.role!);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!context.mounted) return;
+        await loadAtleticaTheme(context.read<ThemeNotifier>());
+        if (context.mounted) _handleNavigation(context, vm.role!);
       });
     }
 
@@ -179,46 +184,33 @@ class _LoginContentState extends State<_LoginContent> {
                         fontWeight: FontWeight.w700, letterSpacing: 0.8)),
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // ── Divider ───────────────────────────────────────────
-              Divider(color: ext.borderColor),
               const SizedBox(height: 20),
 
-              // ── Card criar atlética ───────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: ext.primaryColor.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: ext.primaryColor.withOpacity(0.2)),
-                ),
-                child: Column(children: [
-                  Text('Ainda não tem uma atlética?', style: TextStyle(
-                    fontSize: 13, color: ext.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  )),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.push(context,
-                        MaterialPageRoute(
-                          builder: (_) => const PresidentOnboardingView())),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ext.primaryColor,
-                        side: BorderSide(color: ext.primaryColor),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: const Text('CRIAR SUA PRÓPRIA ATLÉTICA',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              // ── Novo na atlética? ─────────────────────────────────
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ConfirmarAssociadoView()),
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: 13, color: ext.textSecondary),
+                      children: [
+                        const TextSpan(text: 'Novo na atlética? '),
+                        TextSpan(
+                          text: 'Ative sua conta',
+                          style: TextStyle(
+                            color: ext.primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ]),
+                ),
               ),
+              const SizedBox(height: 8),
 
             ],
           ),
