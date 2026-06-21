@@ -18,7 +18,7 @@ Plataforma mobile para gerenciamento de Atléticas Universitárias.
 
 - Flutter `>=3.x` instalado e no PATH
 - Dart SDK `>=3.0.0 <4.0.0`
-- Backend Athlos rodando localmente (ver [app-athlos-backend](../app-athlos-backend))
+- Backend Athlos rodando localmente (ver [app-athlos-backend]([../app-athlos-backend](https://github.com/GabrielMottaBecker/app-athlos-backend)))
 
 ---
 
@@ -57,6 +57,15 @@ O cliente HTTP (`DioClient`) aponta por padrão para os microsserviços rodando 
 | Notificações | `http://localhost:4006/v1` |
 
 Para alterar as URLs, edite `lib/core/network/dio_client.dart`.
+
+---
+
+## Armazenamento local
+
+O app persiste dados localmente em duas camadas:
+
+1. **Sessão (`flutter_secure_storage`)** — `accessToken`, `refreshToken`, `role`, `userId`, `atleticaId` e validade da sessão (24h), criptografados no keystore/keychain do dispositivo. Recuperados automaticamente na splash screen para manter o usuário logado entre aberturas do app.
+2. **Cache de conteúdo (`shared_preferences`)** — os posts do **Feed** retornados pela API são persistidos localmente (`FeedLocalDatasource`) por atlética. Ao reabrir o app, o último conteúdo sincronizado é exibido imediatamente, mesmo antes (ou na ausência) de resposta da API — garantindo uso do app em caso de falha de conexão. Um indicador visual avisa o usuário quando os dados exibidos vêm do cache, com o horário da última sincronização.
 
 ---
 
@@ -184,6 +193,7 @@ As cores são definidas no onboarding do presidente e aplicadas globalmente via 
 | `provider` | `^6.1.2` | Gerenciamento de estado (MVVM) |
 | `dio` | `^5.9.2` | Cliente HTTP |
 | `flutter_secure_storage` | `^10.2.0` | Armazenamento seguro de tokens |
+| `shared_preferences` | `^2.3.2` | Cache local de conteúdo (Feed) |
 | `google_fonts` | `^6.1.0` | Tipografia |
 | `fl_chart` | `^0.66.2` | Gráficos financeiros |
 | `url_launcher` | `^6.3.0` | Links externos (WhatsApp, etc.) |
@@ -195,7 +205,7 @@ As cores são definidas no onboarding do presidente e aplicadas globalmente via 
 
 Este app consome exclusivamente o backend **app-athlos-backend**. O serviço legado `user-auth` (porta 4007) **não é utilizado** pelo app.
 
-Para subir o backend completo, consulte o [README do backend](../app-athlos-backend/README.md).
+Para subir o backend completo, consulte o [README do backend]((https://github.com/GabrielMottaBecker/app-athlos-backend/blob/main/README.md)).
 
 ---
 

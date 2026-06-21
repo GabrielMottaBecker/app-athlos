@@ -5,6 +5,7 @@ import '../../core/theme/theme_notifier.dart';
 import '../../data/models/models.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
+import '../user/user_main_view.dart' show PerfilView;
 import 'register_event_view.dart';
 import 'register_member_view.dart';
 import 'register_product_view.dart';
@@ -21,10 +22,25 @@ class AdminShellView extends StatefulWidget {
 
 class _AdminShellViewState extends State<AdminShellView> {
   int _tab = 0;
+
+  void _openGestaoAssociados() {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(builder: (_) => const AdminMembrosView()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    final tabs = const [AdminLojaView(), AdminAgendaView(), AdminFeedView(), AdminMembrosView()];
+    final tabs = [
+      const AdminLojaView(),
+      const AdminAgendaView(),
+      const AdminFeedView(),
+      PerfilView(
+        appBar: const AdminAppBar(subtitle: 'PERFIL'),
+        onGestaoAssociados: _openGestaoAssociados,
+      ),
+    ];
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
@@ -42,7 +58,7 @@ class _AdminShellViewState extends State<AdminShellView> {
             BottomNavigationBarItem(icon: Icon(Icons.store_outlined), activeIcon: Icon(Icons.store), label: 'Loja'),
             BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Agenda'),
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Feed'),
-            BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Membros'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Perfil'),
           ],
         ),
       ),
@@ -720,10 +736,11 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
       appBar: AppBar(
-        backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
-        leading: Padding(
-          padding: const EdgeInsets.all(10),
-          child: _AdminAtleticaAvatar(),
+        backgroundColor: ext.surfaceColor, elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: ext.textSecondary, size: 20),
+          tooltip: 'Voltar',
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _AdminAtleticaNome(),
@@ -743,11 +760,6 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
-            tooltip: 'Sair',
-            onPressed: () => _confirmLogout(context),
           ),
         ],
         bottom: PreferredSize(

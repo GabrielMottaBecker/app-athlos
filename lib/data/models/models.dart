@@ -52,6 +52,34 @@ class PostModel {
     return '${diff.inDays}d atrás';
   }
 
+  /// Serializa o model para persistência local (cache).
+  /// Diferente do formato cru da API: aqui já guardamos os campos
+  /// derivados (timeAgo, categoryColor) prontos para exibição.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'category': category,
+    'categoryColor': categoryColor,
+    'title': title,
+    'timeAgo': timeAgo,
+    'likes': likes,
+    'comments': comments,
+    'hasImage': hasImage,
+    'imagePath': imagePath,
+  };
+
+  /// Reconstrói o model a partir do cache local (formato de [toJson]).
+  factory PostModel.fromCacheJson(Map<String, dynamic> json) => PostModel(
+    id: json['id'] as String,
+    category: json['category'] as String,
+    categoryColor: json['categoryColor'] as int,
+    title: json['title'] as String,
+    timeAgo: json['timeAgo'] as String,
+    likes: json['likes'] as int? ?? 0,
+    comments: json['comments'] as int? ?? 0,
+    hasImage: json['hasImage'] as bool? ?? false,
+    imagePath: json['imagePath'] as String?,
+  );
+
   PostModel copyWith({
     String? category,
     int? categoryColor,
