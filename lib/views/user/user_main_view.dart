@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import '../auth/login_view.dart';
 import '../../data/datasources/token_local_datasource.dart';
+
+/// Mesmo diálogo de confirmação de logout usado no shell do admin
+/// (ver `_confirmLogout` em admin_shell_view.dart), replicado aqui para
+/// manter a AppBar do membro consistente sem criar import cíclico entre
+/// os dois arquivos.
+Future<void> _confirmLogoutMembro(BuildContext context) async {
+  final ext = context.athlos;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      backgroundColor: ext.surfaceColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Sair da conta', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+      content: Text('Tem certeza que deseja sair?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, false),
+          child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx, true),
+          child: Text('Sair', style: TextStyle(color: ext.primaryColor, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    ),
+  );
+  if (confirmed == true && context.mounted) {
+    await TokenLocalDatasource().clearTokens();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginView()),
+      (r) => false,
+    );
+  }
+}
 
 class UserMainView extends StatefulWidget {
   const UserMainView({super.key});
@@ -114,10 +150,6 @@ class _UserAppBarState extends State<_UserAppBar> {
             ),
           ]),
           actions: widget.actions ?? [
-            IconButton(
-              icon: Icon(Icons.search, color: ext.textSecondary, size: 22),
-              onPressed: () {},
-            ),
             Stack(children: [
               IconButton(
                 icon: Icon(Icons.notifications_outlined, color: ext.textSecondary, size: 22),
@@ -136,6 +168,11 @@ class _UserAppBarState extends State<_UserAppBar> {
                   ),
                 ),
             ]),
+            IconButton(
+              icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
+              tooltip: 'Sair',
+              onPressed: () => _confirmLogoutMembro(ctx),
+            ),
           ],
           bottom: PreferredSize(preferredSize: const Size.fromHeight(1),
             child: Container(height: 1, color: ext.borderColor)),
@@ -335,30 +372,6 @@ class _FeedContent extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.8), height: 1.4)),
           ]),
         ),
-        // Indicador de dados em cache (offline / falha de sincronização)
-        if (vm.isFromCache)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.amber.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(children: [
-              const Icon(Icons.cloud_off_rounded, size: 14, color: Colors.amber),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  vm.lastSyncedAt != null
-                      ? 'Exibindo dados salvos localmente (última sincronização: '
-                          '${vm.lastSyncedAt!.hour.toString().padLeft(2, '0')}:'
-                          '${vm.lastSyncedAt!.minute.toString().padLeft(2, '0')})'
-                      : 'Exibindo dados salvos localmente',
-                  style: const TextStyle(fontSize: 10, color: Colors.amber),
-                ),
-              ),
-            ]),
-          ),
         // Filtros
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -931,7 +944,16 @@ class _ParticipantesContent extends StatelessWidget {
 
 // ─── Perfil View ──────────────────────────────────────────────────────────────
 class PerfilView extends StatefulWidget {
-  const PerfilView({super.key});
+  /// AppBar a ser usada nesta tela. Se nulo, usa o `_UserAppBar` padrão do membro.
+  final PreferredSizeWidget? appBar;
+
+  /// Quando informado, o item "Gestão de Associados" passa a navegar para cá
+  /// em vez de abrir o modal de detalhes do perfil. Usado pelo shell do
+  /// admin/presidente para abrir a listagem/CRUD de membros.
+  final VoidCallback? onGestaoAssociados;
+
+  const PerfilView({super.key, this.appBar, this.onGestaoAssociados});
+
   @override
   State<PerfilView> createState() => _PerfilViewState();
 }
@@ -956,18 +978,60 @@ class _PerfilViewState extends State<PerfilView> {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _vm,
-      child: const _PerfilContent(),
+      child: _PerfilContent(
+        appBar: widget.appBar,
+        onGestaoAssociados: widget.onGestaoAssociados,
+      ),
     );
   }
 }
 
 class _PerfilContent extends StatefulWidget {
-  const _PerfilContent();
+  final PreferredSizeWidget? appBar;
+  final VoidCallback? onGestaoAssociados;
+  const _PerfilContent({this.appBar, this.onGestaoAssociados});
   @override
   State<_PerfilContent> createState() => _PerfilContentState();
 }
 
 class _PerfilContentState extends State<_PerfilContent> {
+
+  void _showFotoOptions(PerfilViewModel vm, AthlosThemeExtension ext) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: BoxDecoration(
+          color: ext.surfaceColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 36, height: 4,
+            decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('Foto de perfil', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          const SizedBox(height: 12),
+          ListTile(
+            leading: Icon(Icons.photo_library_outlined, color: ext.primaryColor),
+            title: Text('Escolher da galeria', style: TextStyle(fontSize: 13, color: ext.textPrimary)),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              vm.pickAndUploadFoto(ImageSource.gallery);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.photo_camera_outlined, color: ext.primaryColor),
+            title: Text('Tirar foto', style: TextStyle(fontSize: 13, color: ext.textPrimary)),
+            onTap: () {
+              Navigator.pop(sheetCtx);
+              vm.pickAndUploadFoto(ImageSource.camera);
+            },
+          ),
+        ]),
+      ),
+    );
+  }
 
   void _showPerfilModal(PerfilViewModel vm, AthlosThemeExtension ext) {
     showModalBottomSheet(
@@ -1046,7 +1110,7 @@ class _PerfilContentState extends State<_PerfilContent> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
-      appBar: _UserAppBar(),
+      appBar: widget.appBar ?? _UserAppBar(),
       body: vm.isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(children: [
@@ -1054,22 +1118,48 @@ class _PerfilContentState extends State<_PerfilContent> {
                 color: ext.surfaceColor, padding: const EdgeInsets.all(20),
                 child: Column(children: [
                   InkWell(
-                    onTap: () => _showPerfilModal(vm, ext),
+                    onTap: vm.isUploadingFoto ? null : () => _showFotoOptions(vm, ext),
                     borderRadius: BorderRadius.circular(40),
                     child: Stack(children: [
-                      Container(width: 80, height: 80,
+                      Container(
+                        width: 80, height: 80,
                         decoration: BoxDecoration(
                           color: ext.primaryColor.withOpacity(0.15),
                           shape: BoxShape.circle,
                           border: Border.all(color: ext.primaryColor, width: 2.5),
                         ),
-                        child: Center(child: Text(vm.initials,
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+                        child: ClipOval(
+                          child: vm.fotoUrl != null && vm.fotoUrl!.isNotEmpty
+                              ? Image.network(
+                                  vm.fotoUrl!,
+                                  width: 80, height: 80, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(child: Text(vm.initials,
+                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+                                  loadingBuilder: (_, child, progress) {
+                                    if (progress == null) return child;
+                                    return Center(child: Text(vm.initials,
+                                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor)));
+                                  },
+                                )
+                              : Center(child: Text(vm.initials,
+                                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: ext.primaryColor))),
+                        ),
+                      ),
+                      if (vm.isUploadingFoto)
+                        Container(width: 80, height: 80,
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: const Center(child: SizedBox(width: 22, height: 22,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4)))),
                       Positioned(bottom: 0, right: 0, child: Container(width: 24, height: 24,
                         decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
                         child: const Icon(Icons.edit, color: Colors.white, size: 12))),
                     ]),
                   ),
+                  if (vm.uploadError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(vm.uploadError!, textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
+                  ],
                   const SizedBox(height: 12),
                   Text(vm.nome.isEmpty ? 'Usuário' : vm.nome,
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
@@ -1085,26 +1175,45 @@ class _PerfilContentState extends State<_PerfilContent> {
                 ]),
               ),
               const SizedBox(height: 8),
-              _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
-                _PerfilItem(
-                  icon: Icons.people_outline,
-                  label: 'Gestão de Associados',
-                  ext: ext,
-                  onTap: () => _showPerfilModal(vm, ext),
-                ),
-                _PerfilItem(
-                  icon: Icons.payment_outlined,
-                  label: 'Meus Pagamentos',
-                  ext: ext,
-                ),
-                _PerfilItem(
-                  icon: Icons.settings_outlined,
-                  label: 'Configurações da Conta',
-                  ext: ext,
-                  onTap: () => _showPerfilModal(vm, ext),
-                ),
-              ]),
-              const SizedBox(height: 8),
+              // Seção visível apenas para Administrador/Super Admin — membro comum não vê.
+              if (vm.isAdmin) ...[
+                _PerfilSection(title: 'ADMINISTRAÇÃO', ext: ext, items: [
+                  _PerfilItem(
+                    icon: Icons.people_outline,
+                    label: 'Gestão de Associados',
+                    ext: ext,
+                    onTap: widget.onGestaoAssociados ?? () => _showPerfilModal(vm, ext),
+                  ),
+                  _PerfilItem(
+                    icon: Icons.payment_outlined,
+                    label: 'Relatório Financeiro',
+                    ext: ext,
+                  ),
+                  _PerfilItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Configurações da Conta',
+                    ext: ext,
+                    onTap: () => _showPerfilModal(vm, ext),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ] else ...[
+                // Membro comum: card próprio com Pagamentos e Configurações da Conta.
+                _PerfilSection(title: 'CONTA', ext: ext, items: [
+                  _PerfilItem(
+                    icon: Icons.payment_outlined,
+                    label: 'Meus Pagamentos',
+                    ext: ext,
+                  ),
+                  _PerfilItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Configurações da Conta',
+                    ext: ext,
+                    onTap: () => _showPerfilModal(vm, ext),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+              ],
               _PerfilSection(title: 'SESSÃO', ext: ext, items: [
                 _PerfilItem(
                   icon: Icons.logout,
@@ -1121,20 +1230,6 @@ class _PerfilContentState extends State<_PerfilContent> {
                   },
                 ),
               ]),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ElevatedButton(
-                  onPressed: () => _showPerfilModal(vm, ext),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ext.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: const Text('Configurações',
-                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
-              ),
               const SizedBox(height: 80),
             ]),
     );
