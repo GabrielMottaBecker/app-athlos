@@ -98,10 +98,9 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
       leading: Padding(padding: const EdgeInsets.all(10),
-        child: CircleAvatar(backgroundColor: ext.primaryColor.withOpacity(0.15),
-          child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)))),
+        child: _AdminAtleticaAvatar()),
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Athlos Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        _AdminAtleticaNome(),
         Text(subtitle, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
       ]),
       actions: actions ?? [
@@ -119,6 +118,49 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
       ],
       bottom: PreferredSize(preferredSize: const Size.fromHeight(1), child: Container(height: 1, color: ext.borderColor)),
     );
+  }
+}
+
+// ─── Admin AppBar: avatar com a logo da atlética (com fallback) ───────────────
+class _AdminAtleticaAvatar extends StatelessWidget {
+  const _AdminAtleticaAvatar();
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    final logoUrl = context.watch<ThemeNotifier>().logoUrl;
+
+    if (logoUrl == null || logoUrl.isEmpty) {
+      return CircleAvatar(
+        backgroundColor: ext.primaryColor.withOpacity(0.15),
+        child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+      );
+    }
+
+    return ClipOval(
+      child: Image.network(
+        logoUrl, width: 36, height: 36, fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => CircleAvatar(
+          backgroundColor: ext.primaryColor.withOpacity(0.15),
+          child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
+        ),
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return CircleAvatar(backgroundColor: ext.surfaceVariant);
+        },
+      ),
+    );
+  }
+}
+
+// ─── Admin AppBar: nome real da atlética (com fallback) ───────────────────────
+class _AdminAtleticaNome extends StatelessWidget {
+  const _AdminAtleticaNome();
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    final nomeAtletica = context.watch<ThemeNotifier>().nomeAtletica;
+    return Text(nomeAtletica, overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary));
   }
 }
 
@@ -681,13 +723,10 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
         backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
         leading: Padding(
           padding: const EdgeInsets.all(10),
-          child: CircleAvatar(
-            backgroundColor: ext.primaryColor.withOpacity(0.15),
-            child: Text('AA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ext.primaryColor)),
-          ),
+          child: _AdminAtleticaAvatar(),
         ),
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Athlos Admin', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+          _AdminAtleticaNome(),
           Text('GESTÃO DE MEMBROS', style: TextStyle(fontSize: 10, color: ext.textSecondary)),
         ]),
         actions: [

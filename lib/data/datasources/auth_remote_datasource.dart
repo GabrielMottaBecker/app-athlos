@@ -10,22 +10,26 @@ class AuthRemoteDatasource {
       : _tokenDatasource = tokenDatasource ?? TokenLocalDatasource();
 
   Future<AuthModel> login(String email, String password) async {
-    final response = await DioClient.identidade.post(
-      '/auth/login',
-      data: {'email': email, 'senha': password},
-    );
+    try {
+      final response = await DioClient.identidade.post(
+        '/auth/login',
+        data: {'email': email, 'senha': password},
+      );
 
-    final auth = AuthModel.fromJson(response.data);
+      final auth = AuthModel.fromJson(response.data);
 
-    await _tokenDatasource.saveTokens(
-      access: auth.accessToken,
-      refresh: auth.refreshToken,
-      role: auth.role,
-      userId: auth.userId,
-      atleticaId: auth.atleticaId,
-    );
+      await _tokenDatasource.saveTokens(
+        access: auth.accessToken,
+        refresh: auth.refreshToken,
+        role: auth.role,
+        userId: auth.userId,
+        atleticaId: auth.atleticaId,
+      );
 
-    return auth;
+      return auth;
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
   }
 
   Future<void> refreshToken() async {
@@ -59,5 +63,71 @@ class AuthRemoteDatasource {
     } finally {
       await _tokenDatasource.clearTokens();
     }
+  }
+
+  /// Primeiro acesso do membro — etapa 1: confirma email + telefone.
+  /// Retorna o token de sessão de ativação (válido por 10 minutos) e o
+  /// nome do membro, para exibir na tela seguinte.
+  Future<({String tokenSessao, String nome})> verificarAssociado({
+    required String email,
+    required String telefone,
+  }) async {
+    try {
+      final response = await DioClient.identidade.post(
+        '/auth/verificar-associado',
+        data: {'email': email, 'telefone': telefone},
+      );
+
+      return (
+        tokenSessao: response.data['tokenSessao'] as String,
+        nome: response.data['nome'] as String,
+      );
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
+  /// Primeiro acesso do membro — etapa 2: define a senha e ativa a conta.
+  /// Já salva os tokens localmente, deixando o membro logado.
+  Future<AuthModel> definirSenha({
+    required String tokenSessao,
+    required String senha,
+  }) async {
+    try {
+      final response = await DioClient.identidade.post(
+        '/auth/definir-senha',
+        data: {'tokenSessao': tokenSessao, 'senha': senha},
+      );
+
+      final auth = AuthModel.fromJson(response.data);
+
+      await _tokenDatasource.saveTokens(
+        access: auth.accessToken,
+        refresh: auth.refreshToken,
+        role: auth.role,
+        userId: auth.userId,
+        atleticaId: auth.atleticaId,
+      );
+
+      return auth;
+    } on DioException catch (e) {
+      throw Exception(_extractMessage(e));
+    }
+  }
+
+  /// Extrai a mensagem de erro vinda do NestJS ({ statusCode, message, error }).
+  /// Cai para uma mensagem genérica se a resposta não tiver esse formato.
+  String _extractMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] != null) {
+      final message = data['message'];
+      if (message is List && message.isNotEmpty) return message.first.toString();
+      return message.toString();
+    }
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return 'Tempo de conexão esgotado. Verifique sua internet.';
+    }
+    return 'Não foi possível completar a operação. Tente novamente.';
   }
 }

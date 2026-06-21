@@ -16,6 +16,10 @@ Future<void> loadAtleticaTheme(ThemeNotifier themeNotifier) async {
       primaryHex: data['corPrimaria'] as String?,
       backgroundHex: data['corFundo'] as String?,
     );
+    themeNotifier.setIdentidade(
+      nome: data['nome'] as String?,
+      logoUrl: data['logoUrl'] as String?,
+    );
   } catch (_) {
     themeNotifier.resetToDefault();
   }

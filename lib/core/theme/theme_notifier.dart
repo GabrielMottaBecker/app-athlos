@@ -36,14 +36,23 @@ class AthlosColorPalettes {
 class ThemeNotifier extends ChangeNotifier {
   static const Color defaultPrimaryColor = Color(0xFF2563EB);
   static const Color defaultBackgroundColor = Color(0xFFF8FAFC);
+  static const String defaultNomeAtletica = 'ATHLOS';
 
   Color _primaryColor = defaultPrimaryColor;
   Color _backgroundColor = defaultBackgroundColor;
   bool _isDark = false;
 
+  // Identidade visual da atlética (nome + logo), independente das cores.
+  // Não fica dentro do AthlosThemeExtension porque texto/URL não são
+  // interpoláveis pelo lerp() do ThemeExtension (que é só para Color).
+  String _nomeAtletica = defaultNomeAtletica;
+  String? _logoUrl;
+
   Color get primaryColor => _primaryColor;
   Color get backgroundColor => _backgroundColor;
   bool get isDark => _isDark;
+  String get nomeAtletica => _nomeAtletica;
+  String? get logoUrl => _logoUrl;
 
   void setPrimaryColor(Color color) {
     _primaryColor = color;
@@ -56,12 +65,20 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Restaura as cores padrão (usuário sem atlética vinculada, ex.: Super
-  /// Admin, ou falha ao buscar as cores da atlética no backend).
+  void setIdentidade({String? nome, String? logoUrl}) {
+    if (nome != null && nome.trim().isNotEmpty) _nomeAtletica = nome.trim();
+    _logoUrl = logoUrl;
+    notifyListeners();
+  }
+
+  /// Restaura as cores e identidade padrão (usuário sem atlética vinculada,
+  /// ex.: Super Admin, ou falha ao buscar os dados da atlética no backend).
   void resetToDefault() {
     _primaryColor = defaultPrimaryColor;
     _backgroundColor = defaultBackgroundColor;
     _isDark = false;
+    _nomeAtletica = defaultNomeAtletica;
+    _logoUrl = null;
     notifyListeners();
   }
 

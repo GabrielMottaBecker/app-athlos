@@ -8,6 +8,7 @@ import '../president/president_onboarding_view.dart';
 import '../admin/admin_shell_view.dart';
 import '../shared/widgets/widgets.dart';
 import '../superadmin/super_admin_shell_view.dart';
+import 'confirmar_associado_view.dart';
 
 class LoginView extends StatelessWidget {
   const LoginView({super.key});
@@ -183,7 +184,33 @@ class _LoginContentState extends State<_LoginContent> {
                         fontWeight: FontWeight.w700, letterSpacing: 0.8)),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // ── Novo na atlética? ─────────────────────────────────
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ConfirmarAssociadoView()),
+                  ),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(fontSize: 13, color: ext.textSecondary),
+                      children: [
+                        const TextSpan(text: 'Novo na atlética? '),
+                        TextSpan(
+                          text: 'Ative sua conta',
+                          style: TextStyle(
+                            color: ext.primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
 
             ],
           ),
