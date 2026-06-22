@@ -40,12 +40,14 @@ class _RegisterEventContentState extends State<_RegisterEventContent> {
     'TREINO': Color(0xFF10B981),
     'EVENTO SOCIAL': Color(0xFFF59E0B),
     'EXTRAS': Color(0xFF8B5CF6),
+    'COMPETICAO': Color(0xFFEF4444),
   };
 
   static const Map<String, IconData> _typeIcons = {
     'TREINO': Icons.fitness_center,
     'EVENTO SOCIAL': Icons.celebration_outlined,
     'EXTRAS': Icons.star_outline,
+    'COMPETICAO': Icons.emoji_events_outlined,
   };
 
   @override

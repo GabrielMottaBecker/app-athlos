@@ -47,7 +47,10 @@ class AgendaViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       final type = _filterMap[_activeFilter];
-      _events = await _ds.getEvents(atleticaId, type: type);
+      final fetched = await _ds.getEvents(atleticaId, type: type);
+      // Avisos vivem na mesma rota de eventos, mas não têm agenda
+      // (sem data/hora/local) — não devem aparecer aqui, só no Feed.
+      _events = fetched.where((e) => e.type != 'AVISO').toList();
     } catch (e) {
       _error = e.toString();
     } finally {

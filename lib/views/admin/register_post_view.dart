@@ -202,44 +202,6 @@ class _RegisterPostContentState extends State<_RegisterPostContent> {
                 ),
               ),
             ])),
-            const SizedBox(height: 14),
-
-            AthlosCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Icon(Icons.label_outline, size: 16, color: ext.primaryColor),
-                const SizedBox(width: 6),
-                Text('Categoria', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary)),
-              ]),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: RegisterPostViewModel.categories.map((c) {
-                  final sel = c == vm.selectedCategory;
-                  final catColor = Color(RegisterPostViewModel.categoryColors[c]!);
-                  return GestureDetector(
-                    onTap: () => context.read<RegisterPostViewModel>().setCategory(c),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: sel ? catColor.withOpacity(0.15) : ext.surfaceVariant,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: sel ? catColor : ext.borderColor),
-                      ),
-                      child: Text(
-                        c,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: sel ? catColor : ext.textSecondary,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ])),
           ]),
         )),
 

@@ -85,25 +85,76 @@ class FeedViewModel extends ChangeNotifier {
     final cat = map[_activeFilter] ?? _activeFilter;
     return _posts.where((p) => p.category == cat).toList();
   }
+
+  /// Curtir/descurtir uma publicação. Estado puramente local — não é
+  /// enviado ao backend e reseta ao recarregar o Feed.
+  void toggleLike(String postId) {
+    final index = _posts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
+    final post = _posts[index];
+    final liked = !post.likedByMe;
+    _posts[index] = post.copyWith(
+      likedByMe: liked,
+      likes: liked ? post.likes + 1 : (post.likes > 0 ? post.likes - 1 : 0),
+    );
+    notifyListeners();
+  }
+
+  /// Adiciona um comentário local a uma publicação. Não é enviado ao
+  /// backend — vive só em memória durante a sessão atual.
+  void addComment(String postId, String authorName, String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    final index = _posts.indexWhere((p) => p.id == postId);
+    if (index == -1) return;
+    final post = _posts[index];
+    final newComment = CommentModel(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      authorName: authorName,
+      text: trimmed,
+      createdAt: DateTime.now(),
+    );
+    _posts[index] = post.copyWith(
+      commentsList: [...post.commentsList, newComment],
+      comments: post.comments + 1,
+    );
+    notifyListeners();
+  }
 }
 
 // ─── Feed Admin ───────────────────────────────────────────────────────────────
+/// Item unificado do Feed administrativo: pode representar um Aviso (post)
+/// ou um Treino/Evento, já que ambos vivem na mesma entidade `/eventos`
+/// no backend. A UI deixou de ter uma aba "Agenda" separada — treinos,
+/// eventos e avisos agora aparecem juntos aqui.
+class AdminFeedItem {
+  final PostModel post;
+  final EventModel event;
+  /// true quando o item tem informações de agenda (data/hora/local),
+  /// ou seja, é um Treino/Evento e não um Aviso simples.
+  final bool isEvento;
+
+  const AdminFeedItem({required this.post, required this.event, required this.isEvento});
+
+  String get id => post.id;
+  String get title => post.title;
+}
+
 class AdminFeedViewModel extends ChangeNotifier {
   final FeedRemoteDatasource _ds = FeedRemoteDatasource();
   final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
   String _searchQuery = '';
-  List<PostModel> _posts = [];
+  List<AdminFeedItem> _items = [];
   bool _isLoading = false;
 
   String get searchQuery => _searchQuery;
   bool get isLoading => _isLoading;
 
-  List<PostModel> get posts {
-    if (_searchQuery.isEmpty) return _posts;
-    return _posts
-        .where((p) => p.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
+  List<AdminFeedItem> get items {
+    if (_searchQuery.isEmpty) return _items;
+    final q = _searchQuery.toLowerCase();
+    return _items.where((i) => i.title.toLowerCase().contains(q)).toList();
   }
 
   AdminFeedViewModel() {
@@ -115,9 +166,31 @@ class AdminFeedViewModel extends ChangeNotifier {
     notifyListeners();
     try {
       final atleticaId = await _tokenDs.getAtleticaId();
-      print('>>> atleticaId do storage: $atleticaId');
       if (atleticaId == null) throw Exception('Atlética não identificada');
-      _posts = await _ds.getPosts(atleticaId);
+
+      // Posts e Eventos vêm da mesma rota (/eventos/atletica/:id) no backend;
+      // aqui buscamos os dois parses para saber exibir cada item corretamente
+      // (treino/evento tem data/hora/local; aviso simples não).
+      final results = await Future.wait([
+        _ds.getPosts(atleticaId),
+        _ds.getEvents(atleticaId),
+      ]);
+      final posts = results[0] as List<PostModel>;
+      final events = results[1] as List<EventModel>;
+      final eventsById = {for (final e in events) e.id: e};
+
+      _items = posts.map((p) {
+        final ev = eventsById[p.id];
+        // Avisos são identificados pelo próprio tipo — mais confiável do
+        // que checar se date/time/place estão vazios, já que o backend
+        // exige esses campos não-vazios mesmo para avisos (usamos '-').
+        final isAviso = p.category == 'AVISO';
+        return AdminFeedItem(
+          post: p,
+          event: ev ?? EventModel(id: p.id, date: '', type: p.category, typeColor: p.categoryColor, title: p.title, time: '', place: '', bgColor: p.categoryColor),
+          isEvento: !isAviso,
+        );
+      }).toList();
     } catch (_) {
     } finally {
       _isLoading = false;
@@ -130,49 +203,35 @@ class AdminFeedViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removePost(String id) async {
+  Future<void> removeItem(String id) async {
     await _ds.deleteEvento(id);
-    _posts.removeWhere((p) => p.id == id);
+    _items.removeWhere((i) => i.id == id);
     notifyListeners();
   }
 
   Future<void> refresh() => load();
 }
 
-// ─── Cadastrar / Editar Post ──────────────────────────────────────────────────
+// ─── Cadastrar / Editar Post (Aviso) ──────────────────────────────────────────
 class RegisterPostViewModel extends ChangeNotifier {
   final FeedRemoteDatasource _ds = FeedRemoteDatasource();
   final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
   final _picker = ImagePicker();
   final PostModel? initialPost;
 
-  String _selectedCategory = 'PRESIDÊNCIA';
+  /// Todo post criado por aqui é sempre um Aviso — não há mais seleção de
+  /// categoria nesta tela.
+  static const String category = 'AVISO';
+  static const int categoryColor = 0xFFEF4444;
+
   bool _isLoading = false;
   XFile? _image;
 
-  static const List<String> categories = ['PRESIDÊNCIA', 'TREINO', 'COMPETIÇÃO', 'AVISO'];
-  static const Map<String, int> categoryColors = {
-    'PRESIDÊNCIA': 0xFF2563EB,
-    'TREINO':      0xFF10B981,
-    'COMPETIÇÃO':  0xFFF59E0B,
-    'AVISO':       0xFFEF4444,
-  };
-
-  String get selectedCategory => _selectedCategory;
   bool get isLoading => _isLoading;
   bool get isEditMode => initialPost != null;
   XFile? get selectedImage => _image;
 
-  RegisterPostViewModel({this.initialPost}) {
-    if (initialPost != null) {
-      _selectedCategory = initialPost!.category;
-    }
-  }
-
-  void setCategory(String category) {
-    _selectedCategory = category;
-    notifyListeners();
-  }
+  RegisterPostViewModel({this.initialPost});
 
   Future<void> pickImage(ImageSource source) async {
     final img = await _picker.pickImage(source: source, imageQuality: 80);
@@ -194,7 +253,15 @@ class RegisterPostViewModel extends ChangeNotifier {
       final atleticaId = await _tokenDs.getAtleticaId();
       final body = {
         'title': title.trim(),
-        'type': _selectedCategory,
+        'type': category,
+        'typeColor': categoryColor,
+        // Avisos não têm agenda, mas o backend exige date/time/place
+        // não-vazios (@IsNotEmpty rejeita string vazia, não só nulo).
+        // Mandamos um placeholder fixo só para satisfazer a validação.
+        'date': '-',
+        'time': '-',
+        'place': '-',
+        'bgColor': categoryColor,
         'atleticaId': atleticaId,
       };
       if (isEditMode) {

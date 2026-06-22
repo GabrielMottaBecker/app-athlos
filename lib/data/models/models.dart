@@ -1,3 +1,18 @@
+// ─── Comment Model (local, sem persistência no backend) ───────────────────────
+class CommentModel {
+  final String id;
+  final String authorName;
+  final String text;
+  final DateTime createdAt;
+
+  const CommentModel({
+    required this.id,
+    required this.authorName,
+    required this.text,
+    required this.createdAt,
+  });
+}
+
 // ─── Post Model ───────────────────────────────────────────────────────────────
 class PostModel {
   final String id;
@@ -9,6 +24,10 @@ class PostModel {
   final int comments;
   final bool hasImage;
   final String? imagePath;
+  /// Estado local de curtida do usuário atual (não persiste no backend).
+  final bool likedByMe;
+  /// Comentários adicionados localmente nesta sessão (não persistem no backend).
+  final List<CommentModel> commentsList;
 
   const PostModel({
     required this.id,
@@ -20,6 +39,8 @@ class PostModel {
     this.comments = 0,
     this.hasImage = false,
     this.imagePath,
+    this.likedByMe = false,
+    this.commentsList = const [],
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
@@ -55,6 +76,8 @@ class PostModel {
   /// Serializa o model para persistência local (cache).
   /// Diferente do formato cru da API: aqui já guardamos os campos
   /// derivados (timeAgo, categoryColor) prontos para exibição.
+  /// Curtidas/comentários locais não são persistidos no cache de disco —
+  /// eles vivem só em memória durante a sessão do app.
   Map<String, dynamic> toJson() => {
     'id': id,
     'category': category,
@@ -89,6 +112,8 @@ class PostModel {
     int? comments,
     bool? hasImage,
     Object? imagePath = _sentinel,
+    bool? likedByMe,
+    List<CommentModel>? commentsList,
   }) => PostModel(
     id: id,
     category: category ?? this.category,
@@ -99,6 +124,8 @@ class PostModel {
     comments: comments ?? this.comments,
     hasImage: hasImage ?? this.hasImage,
     imagePath: imagePath == _sentinel ? this.imagePath : imagePath as String?,
+    likedByMe: likedByMe ?? this.likedByMe,
+    commentsList: commentsList ?? this.commentsList,
   );
 }
 

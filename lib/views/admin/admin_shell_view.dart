@@ -24,7 +24,7 @@ class _AdminShellViewState extends State<AdminShellView> {
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    final tabs = const [AdminLojaView(), AdminAgendaView(), AdminFeedView(), AdminMembrosView()];
+    final tabs = const [AdminLojaView(), AdminFeedView(), AdminMembrosView()];
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
@@ -40,7 +40,6 @@ class _AdminShellViewState extends State<AdminShellView> {
           selectedFontSize: 10, unselectedFontSize: 10,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.store_outlined), activeIcon: Icon(Icons.store), label: 'Loja'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Agenda'),
             BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Feed'),
             BottomNavigationBarItem(icon: Icon(Icons.people_outline), activeIcon: Icon(Icons.people), label: 'Membros'),
           ],
@@ -298,199 +297,6 @@ class _AdminLojaContentState extends State<_AdminLojaContent> {
   }
 }
 
-// ─── Admin Agenda View ────────────────────────────────────────────────────────
-class AdminAgendaView extends StatefulWidget {
-  const AdminAgendaView({super.key});
-  @override
-  State<AdminAgendaView> createState() => _AdminAgendaViewState();
-}
-
-class _AdminAgendaViewState extends State<AdminAgendaView> {
-  late final AdminAgendaViewModel _vm;
-
-  @override
-  void initState() {
-    super.initState();
-    _vm = AdminAgendaViewModel();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _vm.load());
-  }
-
-  @override
-  void dispose() {
-    _vm.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _vm,
-      child: const _AdminAgendaContent(),
-    );
-  }
-}
-
-class _AdminAgendaContent extends StatefulWidget {
-  const _AdminAgendaContent();
-  @override
-  State<_AdminAgendaContent> createState() => _AdminAgendaContentState();
-}
-
-class _AdminAgendaContentState extends State<_AdminAgendaContent> {
-  Future<void> _openCreateEvent() async {
-    await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => const RegisterEventView()),
-    );
-    if (context.mounted) context.read<AdminAgendaViewModel>().refresh();
-  }
-
-  Future<void> _openEditEvent(EventModel event) async {
-    await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => RegisterEventView(event: event)),
-    );
-    if (context.mounted) context.read<AdminAgendaViewModel>().refresh();
-  }
-
-  Future<void> _openPresenceList(BuildContext context, EventModel event) async {
-    final ext = context.athlos;
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: ext.surfaceColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => _PresenceListSheet(event: event),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext ctx, String id, String title) async {
-    final ext = ctx.athlos;
-    final confirmed = await showDialog<bool>(
-      context: ctx,
-      builder: (dialogCtx) => AlertDialog(
-        backgroundColor: ext.surfaceColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Remover evento', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-        content: Text('Tem certeza que deseja remover "$title"?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, false),
-            child: Text('Cancelar', style: TextStyle(color: ext.textSecondary)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx, true),
-            child: const Text('Remover', style: TextStyle(color: Color(0xFFEF4444))),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && ctx.mounted) {
-      ctx.read<AdminAgendaViewModel>().removeEvent(id);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = context.watch<AdminAgendaViewModel>();
-    final ext = context.athlos;
-
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      backgroundColor: ext.backgroundColor,
-      appBar: AdminAppBar(subtitle: 'GESTÃO DA AGENDA'),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: ext.primaryColor,
-        mini: true,
-        onPressed: _openCreateEvent,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
-        Row(children: [
-          Text('Agenda', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-          const Spacer(),
-          _Chip('${vm.totalCount} EVENTOS', const Color(0xFF10B981)),
-          const SizedBox(width: 8),
-          _Chip('${vm.treinoCount} TREINOS', const Color(0xFFF59E0B)),
-        ]),
-        const SizedBox(height: 16),
-
-        if (vm.events.isEmpty)
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Column(children: [
-                Icon(Icons.event_outlined, size: 40, color: ext.textSecondary.withOpacity(0.4)),
-                const SizedBox(height: 10),
-                Text('Nenhum evento cadastrado.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
-              ]),
-            ),
-          ),
-
-        ...vm.events.map((event) {
-          final typeColor = Color(event.typeColor);
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: ext.surfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: typeColor.withOpacity(0.25)),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Header: tipo + data + ações
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
-                    child: Text(event.type, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: typeColor)),
-                  ),
-                  const Spacer(),
-                  Text(event.date, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ext.textSecondary)),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () => _openPresenceList(context, event),
-                    child: Icon(Icons.people_outline, size: 16, color: ext.textSecondary),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _openEditEvent(event),
-                    child: Icon(Icons.edit_outlined, size: 16, color: ext.textSecondary),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _confirmDelete(context, event.id, event.title),
-                    child: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
-                  ),
-                ]),
-              ),
-              // Título
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: Text(event.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary, height: 1.3)),
-              ),
-              // Horário e local
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                child: Row(children: [
-                  Icon(Icons.access_time, size: 12, color: ext.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(event.time, style: TextStyle(fontSize: 11, color: ext.textSecondary)),
-                  const SizedBox(width: 12),
-                  Icon(Icons.location_on_outlined, size: 12, color: ext.textSecondary),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text(event.place, style: TextStyle(fontSize: 11, color: ext.textSecondary), overflow: TextOverflow.ellipsis)),
-                ]),
-              ),
-            ]),
-          );
-        }).toList(),
-        const SizedBox(height: 72),
-      ]),
-    );
-  }
-}
 
 // ─── Lista de presença de um evento (admin) ────────────────────────────────────
 class _PresenceListSheet extends StatefulWidget {
@@ -699,11 +505,37 @@ class _AdminFeedContentState extends State<_AdminFeedContent> {
     if (context.mounted) context.read<AdminFeedViewModel>().refresh();
   }
 
-  Future<void> _openEditPost(PostModel post) async {
+  Future<void> _openCreateEvent() async {
     await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(builder: (_) => RegisterPostView(post: post)),
+      MaterialPageRoute(builder: (_) => const RegisterEventView()),
     );
     if (context.mounted) context.read<AdminFeedViewModel>().refresh();
+  }
+
+  Future<void> _openEditItem(AdminFeedItem item) async {
+    if (item.isEvento) {
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(builder: (_) => RegisterEventView(event: item.event)),
+      );
+    } else {
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(builder: (_) => RegisterPostView(post: item.post)),
+      );
+    }
+    if (context.mounted) context.read<AdminFeedViewModel>().refresh();
+  }
+
+  Future<void> _openPresenceList(BuildContext context, EventModel event) async {
+    final ext = context.athlos;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ext.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _PresenceListSheet(event: event),
+    );
   }
 
   Future<void> _confirmDelete(BuildContext ctx, String id, String title) async {
@@ -713,8 +545,8 @@ class _AdminFeedContentState extends State<_AdminFeedContent> {
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: ext.surfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Remover postagem', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-        content: Text('Tem certeza que deseja remover esta postagem?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+        title: Text('Remover item', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        content: Text('Tem certeza que deseja remover "$title"?', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -728,8 +560,45 @@ class _AdminFeedContentState extends State<_AdminFeedContent> {
       ),
     );
     if (confirmed == true && ctx.mounted) {
-      ctx.read<AdminFeedViewModel>().removePost(id);
+      ctx.read<AdminFeedViewModel>().removeItem(id);
     }
+  }
+
+  void _openCreateMenu(BuildContext context) {
+    final ext = context.athlos;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ext.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 36, height: 4,
+            margin: const EdgeInsets.only(top: 12, bottom: 16),
+            decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2)),
+          ),
+          ListTile(
+            leading: Icon(Icons.campaign_outlined, color: ext.primaryColor),
+            title: Text('Novo Aviso', style: TextStyle(color: ext.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _openCreatePost();
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.event_outlined, color: ext.primaryColor),
+            title: Text('Novo Treino/Evento', style: TextStyle(color: ext.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+            onTap: () {
+              Navigator.pop(ctx);
+              _openCreateEvent();
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -741,55 +610,75 @@ class _AdminFeedContentState extends State<_AdminFeedContent> {
       backgroundColor: ext.backgroundColor,
       appBar: AdminAppBar(subtitle: 'GESTÃO DO FEED'),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: ext.primaryColor, mini: true, onPressed: _openCreatePost,
+        backgroundColor: ext.primaryColor, mini: true, onPressed: () => _openCreateMenu(context),
         child: const Icon(Icons.add, color: Colors.white)),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         AthlosTextField(
-          hint: 'Buscar postagens ou avisos...',
+          hint: 'Buscar treinos, eventos ou avisos...',
           onChanged: (v) => context.read<AdminFeedViewModel>().setSearchQuery(v),
         ),
         const SizedBox(height: 14),
-        Text('Postagens Recentes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+        Text('Feed da Atlética', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
         const SizedBox(height: 10),
-        if (vm.posts.isEmpty)
+        if (vm.items.isEmpty)
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 40),
               child: Column(children: [
                 Icon(Icons.article_outlined, size: 40, color: ext.textSecondary.withOpacity(0.4)),
                 const SizedBox(height: 10),
-                Text('Nenhuma postagem encontrada.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
+                Text('Nenhum treino, evento ou aviso encontrado.', style: TextStyle(fontSize: 13, color: ext.textSecondary)),
               ]),
             ),
           ),
-        ...vm.posts.map((p) {
+        ...vm.items.map((item) {
+          final p = item.post;
           final typeColor = Color(p.categoryColor);
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: ext.surfaceColor, borderRadius: BorderRadius.circular(10), border: Border.all(color: ext.borderColor)),
-            child: Row(children: [
-              Container(width: 36, height: 36,
-                decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.article_outlined, size: 18, color: typeColor)),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(color: typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(3)),
-                  child: Text(p.category, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: typeColor))),
-                const SizedBox(height: 4),
-                Text(p.title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: ext.textPrimary, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(p.timeAgo, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
-              ])),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _openEditPost(p),
-                child: Icon(Icons.edit_outlined, size: 14, color: ext.textSecondary)),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => _confirmDelete(context, p.id, p.title),
-                child: const Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444))),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(width: 36, height: 36,
+                  decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+                  child: Icon(item.isEvento ? Icons.event_outlined : Icons.article_outlined, size: 18, color: typeColor)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(color: typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(3)),
+                    child: Text(p.category, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: typeColor))),
+                  const SizedBox(height: 4),
+                  Text(p.title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: ext.textPrimary, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 2),
+                  Text(p.timeAgo, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
+                ])),
+                const SizedBox(width: 8),
+                if (item.isEvento)
+                  GestureDetector(
+                    onTap: () => _openPresenceList(context, item.event),
+                    child: Icon(Icons.people_outline, size: 14, color: ext.textSecondary)),
+                if (item.isEvento) const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _openEditItem(item),
+                  child: Icon(Icons.edit_outlined, size: 14, color: ext.textSecondary)),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _confirmDelete(context, item.id, item.title),
+                  child: const Icon(Icons.delete_outline, size: 14, color: Color(0xFFEF4444))),
+              ]),
+              if (item.isEvento) ...[
+                const SizedBox(height: 8),
+                Row(children: [
+                  Icon(Icons.access_time, size: 11, color: ext.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(item.event.time, style: TextStyle(fontSize: 10, color: ext.textSecondary)),
+                  const SizedBox(width: 10),
+                  Icon(Icons.location_on_outlined, size: 11, color: ext.textSecondary),
+                  const SizedBox(width: 4),
+                  Expanded(child: Text(item.event.place, style: TextStyle(fontSize: 10, color: ext.textSecondary), overflow: TextOverflow.ellipsis)),
+                ]),
+              ],
             ]),
           );
         }).toList(),
