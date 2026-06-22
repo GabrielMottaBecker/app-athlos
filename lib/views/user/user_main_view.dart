@@ -38,6 +38,7 @@ Future<void> _confirmLogoutMembro(BuildContext context) async {
   if (confirmed == true && context.mounted) {
     await TokenLocalDatasource().clearTokens();
     if (!context.mounted) return;
+    context.read<ThemeNotifier>().resetToDefault();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginView()),
       (r) => false,
@@ -447,9 +448,12 @@ class _PostCard extends StatelessWidget {
         Text(post.title, style: TextStyle(fontSize: 13, color: ext.textPrimary, height: 1.45)),
         if (post.hasImage) ...[
           const SizedBox(height: 10),
-          Container(height: 90,
-            decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-            child: Center(child: Icon(Icons.image_outlined, size: 28, color: ext.textSecondary.withOpacity(0.4)))),
+          AspectRatio(
+            aspectRatio: 16 / 7,
+            child: Container(
+              decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+              child: Center(child: Icon(Icons.image_outlined, size: 28, color: ext.textSecondary.withOpacity(0.4)))),
+          ),
         ],
         const SizedBox(height: 10),
         Row(children: [
@@ -683,7 +687,8 @@ class _LojaContent extends StatelessWidget {
       body: Stack(children: [
         ListView(children: [
           Container(
-            margin: const EdgeInsets.fromLTRB(16, 14, 16, 0), height: 130,
+            margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            height: context.bannerHeight,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [ext.primaryColor.withOpacity(0.9), Colors.black87]),
               borderRadius: BorderRadius.circular(14),
@@ -704,9 +709,11 @@ class _LojaContent extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GridView.count(
               shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.76,
+              crossAxisCount: context.gridCols, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 0.76,
               children: vm.products.map((p) {
                 final qty = vm.quantityInCart(p.id);
+                final esgotado = p.estoque <= 0;
+                final atMax = !esgotado && qty >= p.estoque;
                 return Container(
                   decoration: BoxDecoration(
                     color: ext.surfaceColor,
@@ -728,14 +735,30 @@ class _LojaContent extends StatelessWidget {
                           decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(10)),
                           child: Text('$qty', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
                         )),
+                      if (esgotado)
+                        Positioned.fill(child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                          ),
+                          child: const Center(child: Text('ESGOTADO',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1))),
+                        )),
                     ])),
                     Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(p.name, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 2),
                       const SizedBox(height: 6),
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                         Text('R\$ ${p.price.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ext.primaryColor)),
-                        if (qty == 0)
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                            color: esgotado ? ext.textSecondary : ext.primaryColor)),
+                        if (esgotado)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6)),
+                            child: Text('Esgotado', style: TextStyle(fontSize: 9, color: ext.textSecondary)),
+                          )
+                        else if (qty == 0)
                           GestureDetector(
                             onTap: () => context.read<LojaViewModel>().addToCart(p),
                             child: Container(
@@ -759,15 +782,26 @@ class _LojaContent extends StatelessWidget {
                               child: Text('$qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ext.textPrimary)),
                             ),
                             GestureDetector(
-                              onTap: () => context.read<LojaViewModel>().addToCart(p),
-                              child: Container(
+                              onTap: atMax ? null : () => context.read<LojaViewModel>().addToCart(p),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
                                 width: 24, height: 24,
-                                decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
-                                child: const Icon(Icons.add, size: 12, color: Colors.white),
+                                decoration: BoxDecoration(
+                                  color: atMax ? ext.surfaceVariant : ext.primaryColor,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: atMax ? Border.all(color: ext.borderColor) : null,
+                                ),
+                                child: Icon(Icons.add, size: 12,
+                                  color: atMax ? ext.textSecondary : Colors.white),
                               ),
                             ),
                           ]),
                       ]),
+                      if (atMax)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text('Máx. ${p.estoque} un.', style: TextStyle(fontSize: 9, color: ext.textSecondary)),
+                        ),
                     ])),
                   ]),
                 );
@@ -840,7 +874,7 @@ class _CartBottomSheet extends StatelessWidget {
         color: ext.surfaceColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + MediaQuery.of(context).padding.bottom),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 36, height: 4, decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 16),
@@ -856,45 +890,53 @@ class _CartBottomSheet extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 8),
-        ...vm.cart.map((item) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
-              child: Icon(Icons.checkroom_outlined, size: 20, color: ext.textSecondary.withOpacity(0.4)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.product.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('R\$ ${item.product.price.toStringAsFixed(2)} un.', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
-            ])),
-            Row(children: [
-              GestureDetector(
-                onTap: () => vm.decrementCart(item.product.id),
-                child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6), border: Border.all(color: ext.borderColor)),
-                  child: Icon(Icons.remove, size: 13, color: ext.textPrimary),
+        ...vm.cart.map((item) {
+          final cartAtMax = item.quantity >= item.product.estoque && item.product.estoque > 0;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+                child: Icon(Icons.checkroom_outlined, size: 20, color: ext.textSecondary.withOpacity(0.4)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(item.product.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ext.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text('R\$ ${item.product.price.toStringAsFixed(2)} un.', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+              ])),
+              Row(children: [
+                GestureDetector(
+                  onTap: () => vm.decrementCart(item.product.id),
+                  child: Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(color: ext.surfaceVariant, borderRadius: BorderRadius.circular(6), border: Border.all(color: ext.borderColor)),
+                    child: Icon(Icons.remove, size: 13, color: ext.textPrimary),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('${item.quantity}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary)),
-              ),
-              GestureDetector(
-                onTap: () => vm.addToCart(item.product),
-                child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: ext.primaryColor, borderRadius: BorderRadius.circular(6)),
-                  child: const Icon(Icons.add, size: 13, color: Colors.white),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('${item.quantity}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ext.textPrimary)),
                 ),
-              ),
+                GestureDetector(
+                  onTap: cartAtMax ? null : () => vm.addToCart(item.product),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: cartAtMax ? ext.surfaceVariant : ext.primaryColor,
+                      borderRadius: BorderRadius.circular(6),
+                      border: cartAtMax ? Border.all(color: ext.borderColor) : null,
+                    ),
+                    child: Icon(Icons.add, size: 13, color: cartAtMax ? ext.textSecondary : Colors.white),
+                  ),
+                ),
+              ]),
+              const SizedBox(width: 12),
+              Text('R\$ ${item.subtotal.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.primaryColor)),
             ]),
-            const SizedBox(width: 12),
-            Text('R\$ ${item.subtotal.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ext.primaryColor)),
-          ]),
-        )),
+          );
+        }),
         const SizedBox(height: 8),
         Divider(color: ext.borderColor),
         const SizedBox(height: 8),
@@ -1408,6 +1450,7 @@ class _PerfilContentState extends State<_PerfilContent> {
                   onTap: () async {
                     await TokenLocalDatasource().clearTokens();
                     if (!context.mounted) return;
+                    context.read<ThemeNotifier>().resetToDefault();
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(builder: (_) => const LoginView()),
                       (r) => false,

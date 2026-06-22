@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../data/datasources/members_remote_datasource.dart';
 import '../data/datasources/token_local_datasource.dart';
@@ -124,11 +125,13 @@ class RegisterMemberViewModel extends ChangeNotifier {
   late String _selectedRole;
   late String _selectedStatus;
   bool _isLoading = false;
+  String? _error;
   List<Map<String, dynamic>> _cargos = [];
 
   String get selectedRole => _selectedRole;
   String get selectedStatus => _selectedStatus;
   bool get isLoading => _isLoading;
+  String? get error => _error;
   bool get isEditMode => initialMember != null;
   List<Map<String, dynamic>> get cargos => _cargos;
 
@@ -176,6 +179,7 @@ class RegisterMemberViewModel extends ChangeNotifier {
     required String telefone,
   }) async {
     _isLoading = true;
+    _error = null;
     notifyListeners();
     try {
       final cargo = _cargos.firstWhere(
@@ -210,11 +214,37 @@ class RegisterMemberViewModel extends ChangeNotifier {
       }
       return true;
     } catch (e) {
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map) {
+          final msg = data['message'];
+          if (msg is String) {
+            _error = _translateError(msg);
+          } else if (msg is List && msg.isNotEmpty) {
+            _error = _translateError(msg.first.toString());
+          }
+        }
+        _error ??= 'Erro ao salvar membro. Tente novamente.';
+      } else {
+        _error = 'Erro inesperado ao salvar membro.';
+      }
+      // ignore: avoid_print
       print('>>> ERRO save membro: $e');
       return false;
-    }finally {
+    } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  String _translateError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('documento') || lower.contains('cpf') || lower.contains('ra')) {
+      return 'Registro Acadêmico já registrado em outro usuário.';
+    }
+    if (lower.contains('e-mail') || lower.contains('email')) {
+      return 'E-mail já cadastrado em outro usuário.';
+    }
+    return raw;
   }
 }

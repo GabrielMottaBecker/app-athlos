@@ -358,6 +358,7 @@ class AtleticaModel {
   final String presidentName;
   final int primaryColorValue;
   final int backgroundColorValue;
+  final String status;
 
   const AtleticaModel({
     required this.id,
@@ -365,7 +366,25 @@ class AtleticaModel {
     required this.presidentName,
     required this.primaryColorValue,
     required this.backgroundColorValue,
+    this.status = 'ATIVO',
   });
+
+  bool get isAtivo => status == 'ATIVO';
+
+  AtleticaModel copyWith({
+    String? name,
+    String? presidentName,
+    int? primaryColorValue,
+    int? backgroundColorValue,
+    String? status,
+  }) => AtleticaModel(
+    id: id,
+    name: name ?? this.name,
+    presidentName: presidentName ?? this.presidentName,
+    primaryColorValue: primaryColorValue ?? this.primaryColorValue,
+    backgroundColorValue: backgroundColorValue ?? this.backgroundColorValue,
+    status: status ?? this.status,
+  );
 }
 
 // ─── Agenda Item Model ────────────────────────────────────────────────────────

@@ -256,3 +256,14 @@ extension ThemeContextExtension on BuildContext {
         isDark: false,
       );
 }
+
+extension ResponsiveContextExtension on BuildContext {
+  double get screenWidth => MediaQuery.of(this).size.width;
+  double get screenHeight => MediaQuery.of(this).size.height;
+  // Número de colunas do grid: 2 em telefones normais, 3+ em telas maiores
+  int get gridCols => (screenWidth / 180).floor().clamp(2, 4);
+  // Altura proporcional para banners (≈130px em 375px, escala com a tela)
+  double get bannerHeight => (screenWidth * 0.345).clamp(100.0, 200.0);
+  // Padding horizontal responsivo
+  double get hPad => (screenWidth * 0.042).clamp(14.0, 24.0);
+}

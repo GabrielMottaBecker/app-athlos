@@ -34,6 +34,16 @@ class _LoginContentState extends State<_LoginContent> {
   final _passwordCtrl = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // A tela de login sempre exibe as cores padrão (azul/branco),
+    // independente da atlética que estava logada antes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<ThemeNotifier>().resetToDefault();
+    });
+  }
+
+  @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -139,15 +149,6 @@ class _LoginContentState extends State<_LoginContent> {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // ── Esqueceu a senha ──────────────────────────────────
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text('Esqueceu a senha?', style: TextStyle(
-                  fontSize: 12, color: ext.primaryColor,
-                  fontWeight: FontWeight.w500,
-                )),
-              ),
 
               // ── Erro ──────────────────────────────────────────────
               if (vm.errorMessage != null) ...[

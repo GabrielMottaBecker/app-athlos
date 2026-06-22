@@ -39,8 +39,11 @@ class TokenLocalDatasource {
       _storage.write(key: _roleKey,    value: role),
       _storage.write(key: _userIdKey,  value: userId),
       _storage.write(key: _expiryKey,  value: expiry.toIso8601String()),
+      // Sempre limpa ou salva o atleticaId para não herdar valor de sessão anterior
       if (atleticaId != null)
-        _storage.write(key: _atleticaKey, value: atleticaId),
+        _storage.write(key: _atleticaKey, value: atleticaId)
+      else
+        _storage.delete(key: _atleticaKey),
     ]);
 
     _cachedAccessToken  = access;

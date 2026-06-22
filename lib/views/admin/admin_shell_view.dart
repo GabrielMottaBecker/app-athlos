@@ -72,11 +72,9 @@ Future<void> _confirmLogout(BuildContext context) async {
     ),
   );
   if (confirmed == true && context.mounted) {
-    // Limpa o token antes de navegar
     await TokenLocalDatasource().clearTokens();
-
     if (!context.mounted) return;
-
+    context.read<ThemeNotifier>().resetToDefault();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginView()),
       (r) => false,
@@ -775,6 +773,12 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: ext.backgroundColor,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: ext.primaryColor,
+        mini: true,
+        onPressed: _openRegisterMember,
+        child: const Icon(Icons.person_add, color: Colors.white),
+      ),
       appBar: AppBar(
         backgroundColor: ext.surfaceColor, elevation: 0, automaticallyImplyLeading: false,
         leading: Padding(
@@ -786,20 +790,6 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
           Text('GESTÃO DE MEMBROS', style: TextStyle(fontSize: 10, color: ext.textSecondary)),
         ]),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            child: ElevatedButton.icon(
-              onPressed: _openRegisterMember,
-              icon: const Icon(Icons.person_add, size: 13, color: Colors.white),
-              label: const Text('Novo Membro', style: TextStyle(fontSize: 11, color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ext.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-            ),
-          ),
           IconButton(
             icon: Icon(Icons.logout, color: ext.textSecondary, size: 20),
             tooltip: 'Sair',
@@ -924,6 +914,7 @@ class _AdminMembrosContentState extends State<_AdminMembrosContent> {
             ]),
           ]),
         )).toList(),
+        const SizedBox(height: 72),
       ]),
     );
   }

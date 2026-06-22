@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/datasources/loja_remote_datasource.dart';
 import '../data/datasources/token_local_datasource.dart';
 import '../data/models/models.dart';
@@ -9,10 +11,38 @@ class CartItem {
   int quantity;
   CartItem({required this.product, this.quantity = 1});
   double get subtotal => product.price * quantity;
+
+  Map<String, dynamic> toJson() => {
+    'productId':   product.id,
+    'productName': product.name,
+    'price':       product.price,
+    'tag':         product.tag,
+    'imagePath':   product.imagePath,
+    'status':      product.status,
+    'description': product.description,
+    'estoque':     product.estoque,
+    'quantity':    quantity,
+  };
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    product: ProductModel(
+      id:          json['productId'] as String,
+      name:        json['productName'] as String,
+      price:       (json['price'] as num).toDouble(),
+      tag:         json['tag'] as String? ?? 'Geral',
+      imagePath:   json['imagePath'] as String?,
+      status:      json['status'] as String? ?? 'DISPONIVEL',
+      description: json['description'] as String? ?? '',
+      estoque:     (json['estoque'] as num?)?.toInt() ?? 0,
+    ),
+    quantity: (json['quantity'] as num).toInt(),
+  );
 }
 
 // ─── Loja (usuário) ───────────────────────────────────────────────────────────
 class LojaViewModel extends ChangeNotifier {
+  static const _cartKey = 'cart_items';
+
   final LojaRemoteDatasource _ds = LojaRemoteDatasource();
   final TokenLocalDatasource _tokenDs = TokenLocalDatasource();
 
@@ -40,7 +70,9 @@ class LojaViewModel extends ChangeNotifier {
     'All Items', 'T-Shirts', 'Hoodies', 'Shorts', 'Acessórios'
   ];
 
-  LojaViewModel();
+  LojaViewModel() {
+    _loadCartFromStorage();
+  }
 
   Future<void> load() async {
     _isLoading = true;
@@ -66,13 +98,20 @@ class LojaViewModel extends ChangeNotifier {
     return idx >= 0 ? _cart[idx].quantity : 0;
   }
 
+  bool canAddMore(ProductModel product) {
+    final qty = quantityInCart(product.id);
+    return product.estoque <= 0 ? false : qty < product.estoque;
+  }
+
   void addToCart(ProductModel product) {
+    if (!canAddMore(product)) return;
     final idx = _cart.indexWhere((i) => i.product.id == product.id);
     if (idx >= 0) {
       _cart[idx].quantity++;
     } else {
       _cart.add(CartItem(product: product));
     }
+    _saveCartToStorage();
     notifyListeners();
   }
 
@@ -84,16 +123,19 @@ class LojaViewModel extends ChangeNotifier {
     } else {
       _cart.removeAt(idx);
     }
+    _saveCartToStorage();
     notifyListeners();
   }
 
   void removeFromCart(String productId) {
     _cart.removeWhere((i) => i.product.id == productId);
+    _saveCartToStorage();
     notifyListeners();
   }
 
   void clearCart() {
     _cart.clear();
+    _saveCartToStorage();
     notifyListeners();
   }
 
@@ -103,6 +145,27 @@ class LojaViewModel extends ChangeNotifier {
     ).join('\n');
     final total = cartTotal.toStringAsFixed(2).replaceAll('.', ',');
     return 'Olá! Gostaria de fazer o seguinte pedido:\n\n$lines\n\n*Total: R\$ $total*\n\nAguardo o retorno para combinar a entrega!';
+  }
+
+  Future<void> _saveCartToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(_cart.map((i) => i.toJson()).toList());
+      await prefs.setString(_cartKey, encoded);
+    } catch (_) {}
+  }
+
+  Future<void> _loadCartFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cartKey);
+      if (raw != null && raw.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(raw) as List;
+        _cart.clear();
+        _cart.addAll(decoded.map((e) => CartItem.fromJson(e as Map<String, dynamic>)));
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 }
 
@@ -163,7 +226,6 @@ class AdminLojaViewModel extends ChangeNotifier {
 
   Future<void> refresh() => load();
 
-  // Mantidos para compatibilidade com a view atual
   void removeProduct(String id) => inativarProduto(id);
   void addProduct(ProductModel p) {}
   void updateProduct(ProductModel p) {}
@@ -226,7 +288,6 @@ class RegisterProductViewModel extends ChangeNotifier {
       final parsedEstoque = int.tryParse(estoque) ?? 0;
 
       if (isEditMode) {
-        // UpdateProdutoDto só aceita nome, descricao, preco, estoque, imagemUrl
         final body = {
           'nome':      name.trim(),
           'descricao': description.trim(),
@@ -242,8 +303,6 @@ class RegisterProductViewModel extends ChangeNotifier {
           'preco':      parsedPrice,
           'estoque':    parsedEstoque,
           'atleticaId': atleticaId,
-          // 'categoria' e 'status' não existem no schema do backend hoje;
-          // se forem necessários, é preciso adicionar a coluna/migration lá antes.
         };
         await _ds.createProduto(body);
       }

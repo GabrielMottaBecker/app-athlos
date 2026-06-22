@@ -24,4 +24,12 @@ class AtleticaRemoteDatasource {
   Future<void> updateAtletica(String id, Map<String, dynamic> body) async {
     await DioClient.identidade.patch('/atleticas/$id', data: body);
   }
+
+  Future<void> changeStatus(String id, String status) async {
+    await DioClient.identidade.patch('/atleticas/$id/status', data: {'status': status});
+  }
+
+  Future<void> deleteAtletica(String id) async {
+    await DioClient.identidade.delete('/atleticas/$id');
+  }
 }

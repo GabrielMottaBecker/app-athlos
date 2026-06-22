@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../data/models/models.dart';
@@ -97,10 +98,11 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
               AthlosTextField(hint: 'lucas@email.com', label: 'EMAIL', controller: _emailController, keyboardType: TextInputType.emailAddress),
               const SizedBox(height: 12),
               AthlosTextField(
-                hint: '(44) 99999-9999',
-                label: 'TELEFONE',
+                hint: '44999999999',
+                label: 'TELEFONE (somente dígitos)',
                 controller: _telefoneController,
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
               const SizedBox(height: 12),
               Row(children: [
@@ -230,15 +232,37 @@ class _RegisterMemberContentState extends State<_RegisterMemberContent> {
             const SizedBox(width: 10),
             Expanded(flex: 2, child: ElevatedButton.icon(
               onPressed: vm.isLoading ? null : () async {
+                final phone = _telefoneController.text.trim();
+                if (phone.length < 10 || phone.length > 11) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Telefone inválido. Informe DDD + número (10 ou 11 dígitos).'),
+                    backgroundColor: Color(0xFFEF4444),
+                  ));
+                  return;
+                }
                 final ok = await context.read<RegisterMemberViewModel>().save(
                   name: _nameController.text,
                   email: _emailController.text,
                   ra: _raController.text,
                   curso: _cursoController.text,
                   senha: _senhaController.text,
-                  telefone: _telefoneController.text,
+                  telefone: phone,
                 );
-                if (ok && context.mounted) Navigator.pop(context);
+                if (!context.mounted) return;
+                if (ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(isEdit ? 'Membro atualizado com sucesso!' : 'Membro cadastrado com sucesso!'),
+                    backgroundColor: const Color(0xFF10B981),
+                  ));
+                  Navigator.pop(context);
+                } else {
+                  final errMsg = context.read<RegisterMemberViewModel>().error
+                      ?? 'Erro ao salvar membro. Tente novamente.';
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(errMsg),
+                    backgroundColor: const Color(0xFFEF4444),
+                  ));
+                }
               },
               icon: vm.isLoading
                   ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
