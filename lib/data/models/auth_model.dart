@@ -35,12 +35,17 @@ class AuthModel extends AuthEntity {
       role = 'MEMBRO';
     }
 
+    // Super admin não pertence a nenhuma atlética — ignora o campo do JWT
+    final atleticaId = role == 'SUPER_ADMIN'
+        ? null
+        : decoded['atleticaId'] as String?;
+
     return AuthModel(
       accessToken: accessToken,
       refreshToken: refreshToken,
       role: role,
       userId: decoded['sub'] as String,
-      atleticaId: decoded['atleticaId'] as String?,
+      atleticaId: atleticaId,
     );
   }
 }
