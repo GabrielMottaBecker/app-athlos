@@ -3,9 +3,7 @@ import '../models/models.dart';
 
 class FeedRemoteDatasource {
   Future<List<PostModel>> getPosts(String atleticaId) async {
-    print('>>> Buscando posts para atleticaId: $atleticaId');
     final response = await DioClient.feed.get('/eventos/atletica/$atleticaId');
-    print('>>> Resposta: ${response.data}');
 
     final List<dynamic> items = response.data is List
         ? response.data as List
@@ -45,5 +43,22 @@ class FeedRemoteDatasource {
 
   Future<void> confirmarPresenca(String eventoId) async {
     await DioClient.feed.post('/eventos/$eventoId/presencas');
+  }
+
+  Future<void> removerPresenca(String eventoId, String usuarioId) async {
+    await DioClient.feed.delete('/eventos/$eventoId/presencas/$usuarioId');
+  }
+
+  /// Uso administrativo: lista quem confirmou presença em um evento/treino.
+  Future<List<EventPresenceModel>> getPresencas(String eventoId) async {
+    final response = await DioClient.feed.get('/eventos/$eventoId/presencas');
+
+    final List<dynamic> items = response.data is List
+        ? response.data as List
+        : (response.data['data'] ?? response.data['items'] ?? []) as List;
+
+    return items
+        .map((e) => EventPresenceModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

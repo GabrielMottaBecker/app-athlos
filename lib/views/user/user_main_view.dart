@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/theme/theme_notifier.dart';
 import '../../viewmodels/viewmodels.dart';
 import '../shared/widgets/widgets.dart';
 import '../auth/login_view.dart';
 import '../../data/datasources/token_local_datasource.dart';
+import '../../data/models/models.dart';
 
 /// Mesmo diálogo de confirmação de logout usado no shell do admin
 /// (ver `_confirmLogout` em admin_shell_view.dart), replicado aqui para
@@ -394,12 +396,37 @@ class _FeedContent extends StatelessWidget {
 }
 
 class _PostCard extends StatelessWidget {
-  final post;
+  final PostModel post;
   const _PostCard({required this.post});
+
+  Future<void> _openComments(BuildContext context) async {
+    final ext = context.athlos;
+    final feedVm = context.read<FeedViewModel>();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ext.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _CommentsSheet(postId: post.id, feedVm: feedVm),
+    );
+  }
+
+  void _share(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    Share.share(
+      '${post.category}: ${post.title}',
+      subject: post.category,
+      sharePositionOrigin: origin,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ext = context.athlos;
-    final categoryColor = Color(post.categoryColor as int);
+    final categoryColor = Color(post.categoryColor);
     return AthlosCard(
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -426,17 +453,162 @@ class _PostCard extends StatelessWidget {
         ],
         const SizedBox(height: 10),
         Row(children: [
-          Icon(Icons.thumb_up_outlined, size: 14, color: ext.textSecondary),
-          const SizedBox(width: 4),
-          Text('${post.likes}', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+          GestureDetector(
+            onTap: () => context.read<FeedViewModel>().toggleLike(post.id),
+            child: Row(children: [
+              Icon(
+                post.likedByMe ? Icons.thumb_up : Icons.thumb_up_outlined,
+                size: 14,
+                color: post.likedByMe ? ext.primaryColor : ext.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text('${post.likes}', style: TextStyle(
+                fontSize: 11,
+                color: post.likedByMe ? ext.primaryColor : ext.textSecondary,
+                fontWeight: post.likedByMe ? FontWeight.w700 : FontWeight.w400,
+              )),
+            ]),
+          ),
           const SizedBox(width: 14),
-          Icon(Icons.comment_outlined, size: 14, color: ext.textSecondary),
-          const SizedBox(width: 4),
-          Text('${post.comments}', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+          GestureDetector(
+            onTap: () => _openComments(context),
+            child: Row(children: [
+              Icon(Icons.comment_outlined, size: 14, color: ext.textSecondary),
+              const SizedBox(width: 4),
+              Text('${post.comments}', style: TextStyle(fontSize: 11, color: ext.textSecondary)),
+            ]),
+          ),
           const Spacer(),
-          Icon(Icons.share_outlined, size: 14, color: ext.textSecondary),
+          GestureDetector(
+            onTap: () => _share(context),
+            child: Icon(Icons.share_outlined, size: 14, color: ext.textSecondary),
+          ),
         ]),
       ]),
+    );
+  }
+}
+
+// ─── Comentários de uma publicação (local, sem persistência no backend) ──────
+class _CommentsSheet extends StatefulWidget {
+  final String postId;
+  final FeedViewModel feedVm;
+  const _CommentsSheet({required this.postId, required this.feedVm});
+
+  @override
+  State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    widget.feedVm.addComment(widget.postId, 'Você', _controller.text);
+    _controller.clear();
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = context.athlos;
+    return AnimatedBuilder(
+      animation: widget.feedVm,
+      builder: (_, __) {
+        final post = widget.feedVm.posts.firstWhere(
+          (p) => p.id == widget.postId,
+          orElse: () => PostModel(id: widget.postId, category: '', categoryColor: 0xFF000000, title: '', timeAgo: ''),
+        );
+        final comments = post.commentsList;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollController) => SafeArea(
+            child: Column(children: [
+              Container(
+                width: 36, height: 4,
+                margin: const EdgeInsets.only(top: 12, bottom: 14),
+                decoration: BoxDecoration(color: ext.borderColor, borderRadius: BorderRadius.circular(2)),
+              ),
+              Text('Comentários', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              Expanded(
+                child: comments.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            'Nenhum comentário ainda. Seja o primeiro a comentar.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: ext.textSecondary),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        itemCount: comments.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, i) {
+                          final c = comments[i];
+                          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            AthlosAvatar(name: c.authorName, size: 28),
+                            const SizedBox(width: 8),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text(c.authorName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ext.textPrimary)),
+                              const SizedBox(height: 2),
+                              Text(c.text, style: TextStyle(fontSize: 12, color: ext.textPrimary, height: 1.35)),
+                            ])),
+                          ]);
+                        },
+                      ),
+              ),
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  child: Row(children: [
+                    Expanded(child: TextField(
+                      controller: _controller,
+                      style: TextStyle(fontSize: 13, color: ext.textPrimary),
+                      decoration: InputDecoration(
+                        hintText: 'Escreva um comentário...',
+                        hintStyle: TextStyle(fontSize: 13, color: ext.textSecondary.withOpacity(0.6)),
+                        filled: true,
+                        fillColor: ext.surfaceVariant,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onSubmitted: (_) => _submit(),
+                    )),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: _submit,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: ext.primaryColor, shape: BoxShape.circle),
+                        child: const Icon(Icons.send, size: 16, color: Colors.white),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+        );
+      },
     );
   }
 }
@@ -835,10 +1007,23 @@ class _AgendaContent extends StatelessWidget {
                 Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                   child: SizedBox(width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => context.read<AgendaViewModel>().confirmPresence(e.id),
-                      icon: const Icon(Icons.check_circle_outline, size: 14, color: Colors.white),
-                      label: const Text('Confirmar Presença', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-                      style: ElevatedButton.styleFrom(backgroundColor: ext.primaryColor,
+                      onPressed: vm.isPresenceLoading(e.id) ? null : () async {
+                        final agendaVm = context.read<AgendaViewModel>();
+                        final errorMsg = await agendaVm.togglePresence(e.id);
+                        if (errorMsg != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(errorMsg)),
+                          );
+                        }
+                      },
+                      icon: vm.isPresenceLoading(e.id)
+                          ? const SizedBox(width: 14, height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Icon(e.confirmado ? Icons.check_circle : Icons.check_circle_outline, size: 14, color: Colors.white),
+                      label: Text(e.confirmado ? 'Presença Confirmada' : 'Confirmar Presença',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: e.confirmado ? Colors.green.shade700 : ext.primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                     ))),
