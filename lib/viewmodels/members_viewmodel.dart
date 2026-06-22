@@ -239,11 +239,11 @@ class RegisterMemberViewModel extends ChangeNotifier {
 
   String _translateError(String raw) {
     final lower = raw.toLowerCase();
-    if (lower.contains('documento') || lower.contains('cpf') || lower.contains('ra')) {
-      return 'Registro Acadêmico já registrado em outro usuário.';
-    }
     if (lower.contains('e-mail') || lower.contains('email')) {
       return 'E-mail já cadastrado em outro usuário.';
+    }
+    if (lower.contains('registro acadêmico') || lower.contains('documento') || lower.contains('cpf')) {
+      return 'Registro Acadêmico já registrado em outro usuário.';
     }
     return raw;
   }
